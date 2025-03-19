@@ -1,6 +1,8 @@
-from django.shortcuts import render,redirect,get_object_or_404
+from django.shortcuts import render,redirect
 from autoapp.models import Stock,Supplier
 from autoapp.forms import StockForm,SupplierForm
+from django.db.models import Sum
+
 
 # Create your views here.
 def index(request):
@@ -14,18 +16,33 @@ def blank(request):
 
 def newstock(request):
     if request.method == 'POST':
-        mystocks=Stock(
-            name = request.POST['name'],
-            quantity = request.POST['quantity'],
-            price = request.POST['price'],
-            product = request.POST['product'],
-            date = request.POST['date']
-        )
-        mystocks.save()
+        name = request.POST['name']
+        quantity = int(request.POST['quantity'])
+        price = request.POST['price']
+        product = request.POST['product']
+        date = request.POST['date']
+
+        # Check if the product already exists
+        existing_stock = Stock.objects.filter(product=product, name=name).first()
+
+        if existing_stock:
+            # If the product exists, update its quantity
+            existing_stock.quantity += quantity
+            existing_stock.save()
+        else:
+            # If it's a new product, create a new stock entry
+            Stock.objects.create(
+                name=name,
+                quantity=quantity,
+                price=price,
+                product=product,
+                date=date
+            )
+
         return redirect('/stocks')
 
-    else:
-        return render(request, 'newstock.html')
+    return render(request, 'newstock.html')
+
 
 
 def stocks(request):
@@ -117,3 +134,10 @@ def updatesupplier(request, id):
     else:
         return render(request, 'editsupplier.html')
 
+
+
+def totalstock(request):
+    total_per_product = Stock.objects.values('product').annotate(total_quantity=Sum('quantity'))
+    grand_total = Stock.objects.aggregate(grand_total=Sum('quantity'))['grand_total'] or 0
+
+    return render(request, 'totalstock.html', {'total_per_product': total_per_product, 'grand_total': grand_total})
