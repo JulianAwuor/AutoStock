@@ -1,7 +1,11 @@
-from django.shortcuts import render,redirect
-from autoapp.models import Stock,Supplier
+from django.shortcuts import render,redirect,get_object_or_404
+from autoapp.models import Stock,Supplier,Sale
 from autoapp.forms import StockForm,SupplierForm
 from django.db.models import Sum
+from django.contrib import messages
+from decimal import Decimal
+from django.utils.timezone import now
+from datetime import timedelta
 
 
 # Create your views here.
@@ -18,33 +22,29 @@ def newstock(request):
     if request.method == 'POST':
         name = request.POST['name']
         quantity = int(request.POST['quantity'])
-        price = request.POST['price']
+        price = Decimal(request.POST['price'])  # Convert to Decimal
+        buyingprice = Decimal(request.POST['buyingprice'])  # Convert to Decimal
         product = request.POST['product']
         date = request.POST['date']
 
         # Check if the product already exists
-        existing_stock = Stock.objects.filter(product=product, name=name).first()
+        stock, created = Stock.objects.get_or_create(product=product, name=name, defaults={
+            'quantity': quantity,
+            'price': price,
+            'buyingprice': buyingprice,
+            'date': date
+        })
 
-        if existing_stock:
-            # If the product exists, update its quantity
-            existing_stock.quantity += quantity
-            existing_stock.save()
-        else:
-            # If it's a new product, create a new stock entry
-            Stock.objects.create(
-                name=name,
-                quantity=quantity,
-                price=price,
-                product=product,
-                date=date
-            )
+        if not created:
+            # If the stock already exists, update quantity and price details
+            stock.quantity += quantity
+            stock.price = price
+            stock.buyingprice = buyingprice
+            stock.save()
 
         return redirect('/stocks')
 
     return render(request, 'newstock.html')
-
-
-
 def stocks(request):
     allstocks=Stock.objects.all()
     return render(request, 'stocks.html', {'stock':allstocks})
@@ -141,3 +141,93 @@ def totalstock(request):
     grand_total = Stock.objects.aggregate(grand_total=Sum('quantity'))['grand_total'] or 0
 
     return render(request, 'totalstock.html', {'total_per_product': total_per_product, 'grand_total': grand_total})
+
+
+def addsale(request):
+    if request.method == "POST":
+        product_id = request.POST.get("product")
+        quantitysold = request.POST.get("quantitysold")
+        sellingprice = request.POST.get("sellingprice")
+
+        # Validate required fields
+        if not product_id or not quantitysold or not sellingprice:
+            messages.error(request, "All fields are required!")
+            return redirect("addsale")
+
+        try:
+            quantitysold = int(quantitysold)
+            sellingprice = Decimal(sellingprice)
+        except ValueError:
+            messages.error(request, "Invalid input! Please enter valid numbers.")
+            return redirect("addsale")
+
+        # Ensure quantity sold is positive
+        if quantitysold <= 0:
+            messages.error(request, "Quantity sold must be greater than zero.")
+            return redirect("addsale")
+
+        # Get the selected product
+        product = get_object_or_404(Stock, id=product_id)
+
+        # Ensure selling price is not lower than buying price
+        if sellingprice < product.buyingprice:
+            messages.error(request, "Selling price cannot be lower than buying price!")
+            return redirect("addsale")
+
+        # Check if there is enough stock
+        if quantitysold > product.quantity:
+            messages.error(request, "Not enough stock available!")
+            return redirect("addsale")
+
+        # Deduct sold quantity from stock
+        product.quantity -= quantitysold
+        product.save()
+
+        # Create a sale record
+        Sale.objects.create(
+            product=product,
+            quantitysold=quantitysold,
+            sellingprice=sellingprice
+        )
+
+        messages.success(request, "Sale recorded successfully!")
+        return redirect("sales_list")  # Redirect to sales list page
+
+    # Get all products for dropdown selection
+    products = Stock.objects.all()
+    return render(request, "addsale.html", {"products": products})
+
+
+def salesummary(request):
+    today = now().date()
+    week_start = today - timedelta(days=today.weekday())  # Monday of this week
+    week_end = week_start + timedelta(days=6)  # Sunday of this week
+
+    daily_sales = Sale.objects.filter(datesold=today)
+    weekly_sales = Sale.objects.filter(datesold__range=[week_start, week_end])
+
+    daily_revenue = sum(sale.total_sale for sale in daily_sales)
+    daily_profit = sum(sale.profit for sale in daily_sales)
+
+    weekly_revenue = sum(sale.total_sale for sale in weekly_sales)
+    weekly_profit = sum(sale.profit for sale in weekly_sales)
+
+    context = {
+        "daily_revenue": daily_revenue,
+        "daily_profit": daily_profit,
+        "weekly_revenue": weekly_revenue,
+        "weekly_profit": weekly_profit,
+        "today": today,
+        "week_start": week_start,
+        "week_end": week_end,
+    }
+    return render(request, "salesummary.html", context)
+
+
+def saleslist(request):
+    sales = Sale.objects.all().order_by('-datesold')  # Display latest sales first
+
+    context = {
+        "sales": sales,
+    }
+    return render(request, "saleslist.html", context)
