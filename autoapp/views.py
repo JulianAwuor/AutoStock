@@ -5,12 +5,34 @@ from django.db.models import Sum
 from django.contrib import messages
 from decimal import Decimal
 from django.utils.timezone import now
-from datetime import timedelta
+from datetime import timedelta,date
+from django.http import JsonResponse
+from collections import defaultdict
+
 
 
 # Create your views here.
 def index(request):
-    return render(request, 'index.html')
+    today = now().date()
+    week_start = today - timedelta(days=today.weekday())  # Monday of this week
+    week_end = week_start + timedelta(days=6)  # Sunday of this week
+
+    # Get total stock
+    total_stock = sum(stock.quantity for stock in Stock.objects.all())
+
+    # Get weekly sales
+    weekly_sales = Sale.objects.filter(datesold__range=[week_start, week_end])
+    weekly_revenue = sum(sale.total_sale for sale in weekly_sales)
+    weekly_profit = sum(sale.profit for sale in weekly_sales)
+
+    context = {
+        "total_stock": total_stock,
+        "weekly_revenue": weekly_revenue,
+        "weekly_profit": weekly_profit,
+        "week_start": week_start,
+        "week_end": week_end,
+    }
+    return render(request, "index.html", context)
 
 def register(request):
     return render(request, 'register.html')
@@ -191,7 +213,7 @@ def addsale(request):
         )
 
         messages.success(request, "Sale recorded successfully!")
-        return redirect("sales_list")  # Redirect to sales list page
+        return redirect("addsale")  # Redirect to sales list page
 
     # Get all products for dropdown selection
     products = Stock.objects.all()
@@ -231,3 +253,36 @@ def saleslist(request):
         "sales": sales,
     }
     return render(request, "saleslist.html", context)
+
+
+def weekly_sales_data(request):
+    today = now().date()
+    week_start = today - timedelta(days=today.weekday())  # Monday
+    week_end = week_start + timedelta(days=6)  # Sunday
+
+    # Filter sales within this week
+    weekly_sales = Sale.objects.filter(datesold__range=[week_start, week_end])
+
+    # Use a dictionary to sum sales per day
+    sales_by_day = defaultdict(float)
+    for sale in weekly_sales:
+        day_name = sale.datesold.strftime("%A")  # Convert date to day name
+        sales_by_day[day_name] += float(sale.total_sale)  # Ensure it's a number
+
+    # Sort days to follow the correct order (Monday-Sunday)
+    week_days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    labels = [day for day in week_days if day in sales_by_day]
+    earnings = [sales_by_day[day] for day in labels]
+
+    return JsonResponse({"labels": labels, "earnings": earnings})
+
+
+def low_stock_alert(request):
+    low_stock_items = Stock.objects.filter(quantity__lte=10)  # Get items with quantity ≤ 10
+    data = {
+        "alerts": [
+            {"product": item.product, "quantity": item.quantity, "date": item.date.strftime("%Y-%m-%d")}
+            for item in low_stock_items
+        ]
+    }
+    return JsonResponse(data)
