@@ -242,10 +242,11 @@
                 <!-- Begin Page Content -->
 
 
-               <div class="container mt-5">
+              <div class="container mt-5">
     <h2 class="text-center">Sales Summary</h2>
 
     <div class="row">
+        <!-- Daily Sales -->
         <div class="col-md-6">
             <div class="card text-white bg-primary mb-3">
                 <div class="card-header text-black-50">Daily Sales Summary ({{ today }})</div>
@@ -256,25 +257,35 @@
             </div>
         </div>
 
+        <!-- Weekly Sales -->
         <div class="col-md-6">
             <div class="card text-white bg-success mb-3">
                 <div class="card-header text-black-50">Weekly Sales Summary ({{ week_start }} - {{ week_end }})</div>
                 <div class="card-body">
                     <h5 class="card-title">Revenue: KSH {{ weekly_revenue }}</h5>
                     <p class="card-text">Profit: KSH {{ weekly_profit }}</p>
+
+                    <!-- Save Button -->
+                    <form method="post" action="{% url 'save_weekly_record' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-light mt-3">Save Weekly Record</button>
+                    </form>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Sales List Link -->
     <div class="text-center mt-4">
         <a href="{% url 'saleslist' %}" class="btn btn-secondary">View Sales List</a>
     </div>
+
+      <div class="text-center mt-4">
+        <a href="{% url 'weekly_summary_list' %}" class="btn btn-info mt-3">View Saved Weekly Records</a>
+
+    </div>
 </div>
 
-                <!-- /.container-fluid -->
-
-            </div>
             <!-- End of Main Content -->
 
             <!-- Footer -->

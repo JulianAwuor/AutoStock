@@ -156,18 +156,19 @@
                     </form>
 
                     <!-- Topbar Search -->
-                    <form
-                        class="d-none d-sm-inline-block form-inline mr-auto ml-md-3 my-2 my-md-0 mw-100 navbar-search">
-                        <div class="input-group">
-                            <input type="text" class="form-control bg-light border-0 small" placeholder="Search for..."
-                                aria-label="Search" aria-describedby="basic-addon2">
-                            <div class="input-group-append">
-                                <button class="btn btn-primary" type="button">
-                                    <i class="fas fa-search fa-sm"></i>
-                                </button>
-                            </div>
+                  <form method="GET" action="{% url 'stocks' %}"
+                     class="d-none d-sm-inline-block form-inline mr-auto ml-md-3 my-2 my-md-0 mw-100 navbar-search">
+                    <div class="input-group">
+                      <input type="text" name="q" class="form-control bg-light border-0 small"
+                         placeholder="Search for..." aria-label="Search" aria-describedby="basic-addon2"
+                         value="{{ request.GET.q }}">
+                        <div class="input-group-append">
+                          <button class="btn btn-primary" type="submit">
+                          <i class="fas fa-search fa-sm"></i>
+                          </button>
                         </div>
-                    </form>
+                    </div>
+                  </form>
 
                     <!-- Topbar Navbar -->
                     <ul class="navbar-nav ml-auto">
@@ -242,42 +243,34 @@
 
 
                  <table class="table">
-                  <tr>
-                      <th>Product Name</th>
-                      <th>Quantity</th>
-                      <th>Price Per Item</th>
-                      <th>Buying Price per Item</th>
-                      <th>Supplier Name</th>
-                      <th>Date Added</th>
-                      <th>Action</th>
-                  </tr>
+                      <tr>
+                           <th>Product Name</th>
+                           <th>Quantity</th>
+                           <th>Price Per Item</th>
+                           <th>Buying Price per Item</th>
+                           <th>Supplier Name</th>
+                           <th>Date Added</th>
+                           <th>Action</th>
+                      </tr>
 
-                    {% for x in stock %}
-
-                        <tr>
-                            <td>{{ x.product }}</td>
-                            <td>{{ x.quantity }}</td>
-                            <td>{{ x.price }}</td>
-                            <td>{{ x.buyingprice }}</td>
-                            <td>{{ x.name }}</td>
-                            <td>{{ x.date }}</td>
-                        <td>
-                            <a href="/editstock/{{ x.id }}" class="btn btn-primary">EDIT</a>
-                            <a href="/delete/{{ x.id }}" class="btn btn-danger">DELETE</a>
+           {% for x in stock %}
+                     <tr>
+                       <td>{{ x.product }}</td>
+                       <td>{{ x.quantity }}</td>
+                       <td>{{ x.price }}</td>
+                       <td>{{ x.buyingprice }}</td>
+                       <td>{{ x.name }}</td>
+                       <td>{{ x.date }}</td>
+                       <td>
+                           <a href="/editstock/{{ x.id }}" class="btn btn-primary">EDIT</a>
+                           <a href="/delete/{{ x.id }}" class="btn btn-danger">DELETE</a>
                         </td>
-
-                        </tr>
-
-                    {% endfor %}
-
-
-
-
-
-
-
-
-
+                     </tr>
+                  {% empty %}
+                     <tr>
+                       <td colspan="7" class="text-center">No results found.</td>
+                     </tr>
+                  {% endfor %}
                  </table>
                 <!-- /.container-fluid -->
 

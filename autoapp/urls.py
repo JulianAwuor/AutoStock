@@ -30,6 +30,13 @@ urlpatterns = [
     path('salesummary/', views.salesummary, name='salesummary'),
     path('saleslist/', views.saleslist, name='saleslist'),
     path('api/weekly-sales-data/', views.weekly_sales_data, name='weekly_sales_data'),
-    path('api/low-stock-alerts/', views.low_stock_alert, name='low_stock_alert')
+    path('api/low-stock-alerts/', views.low_stock_alert, name='low_stock_alert'),
+    path('edit_profile/', views.edit_profile, name='edit_profile'),
+    path("save-weekly-record/", views.save_weekly_record, name="save_weekly_record"),
+    path('weekly_summary_list/', views.weekly_summary_list, name='weekly_summary_list'),
+    path('download_weekly_summary_pdf/<int:summary_id>/', views.download_weekly_summary_pdf, name='download_weekly_summary_pdf'),
+
+
+
 
 ]

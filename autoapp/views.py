@@ -1,13 +1,16 @@
 from django.shortcuts import render,redirect,get_object_or_404
-from autoapp.models import Stock,Supplier,Sale
-from autoapp.forms import StockForm,SupplierForm
-from django.db.models import Sum
+from autoapp.models import Stock,Supplier,Sale,UserProfile,WeeklySalesRecord
+from autoapp.forms import StockForm,SupplierForm,ProfileForm
+from django.db.models import Sum,Q
 from django.contrib import messages
 from decimal import Decimal
 from django.utils.timezone import now
 from datetime import timedelta,date
-from django.http import JsonResponse
+from django.http import JsonResponse,HttpResponse
 from collections import defaultdict
+from django.template.loader import render_to_string
+from weasyprint import HTML
+
 
 
 
@@ -67,9 +70,17 @@ def newstock(request):
         return redirect('/stocks')
 
     return render(request, 'newstock.html')
+
+
 def stocks(request):
-    allstocks=Stock.objects.all()
-    return render(request, 'stocks.html', {'stock':allstocks})
+    query = request.GET.get('q')  # (x) Get search input from URL
+    if query:
+        allstocks = Stock.objects.filter(
+            Q(product__icontains=query) | Q(name__icontains=query)
+        )
+    else:
+        allstocks = Stock.objects.all()
+    return render(request, 'stocks.html', {'stock': allstocks})
 
 
 def newsupplier(request):
@@ -87,8 +98,17 @@ def newsupplier(request):
         return render(request, 'newsupplier.html')
 
 def existingsupplier(request):
-    allsuppliers=Supplier.objects.all()
-    return render(request, 'existingsupplier.html', {'supplier':allsuppliers})
+    search_query = request.GET.get('search', '')  # Get the search query from the URL parameters
+    if search_query:
+        # Filter suppliers based on the search query for their name, product, or contact
+        allsuppliers = Supplier.objects.filter(
+            fullname__icontains=search_query) | Supplier.objects.filter(
+            productname__icontains=search_query) | Supplier.objects.filter(
+            contact__icontains=search_query)
+    else:
+        allsuppliers = Supplier.objects.all()
+
+    return render(request, 'existingsupplier.html', {'supplier': allsuppliers, 'search_query': search_query})
 
 def charts(request):
     return render(request, 'charts.html')
@@ -286,3 +306,59 @@ def low_stock_alert(request):
         ]
     }
     return JsonResponse(data)
+
+
+
+def edit_profile(request):
+    if request.method == 'POST':
+        form = ProfileForm(request.POST, request.FILES)  # Ensure request.FILES is included
+        if form.is_valid():
+            user_profile = form.save(commit=False)
+            user_profile.user = request.user  # Attach the profile to the logged-in user
+            user_profile.save()
+            return redirect('profile')  # Redirect to the profile page after saving
+    else:
+        form = ProfileForm()
+
+    return render(request, 'edit_profile.html', {'form': form})
+
+def save_weekly_record(request):
+    today = now().date()
+    week_start = today - timedelta(days=today.weekday())
+    week_end = week_start + timedelta(days=6)
+
+    # Prevent duplicate saves
+    if WeeklySalesRecord.objects.filter(week_start=week_start, week_end=week_end).exists():
+        messages.warning(request, "This week's record has already been saved.")
+        return redirect("salesummary")
+
+    weekly_sales = Sale.objects.filter(datesold__range=[week_start, week_end])
+    total_revenue = sum(sale.total_sale for sale in weekly_sales)
+    total_profit = sum(sale.profit for sale in weekly_sales)
+
+    WeeklySalesRecord.objects.create(
+        week_start=week_start,
+        week_end=week_end,
+        total_revenue=total_revenue,
+        total_profit=total_profit,
+    )
+
+    messages.success(request, "Weekly sales record saved successfully.")
+    return redirect("salesummary")
+
+
+def weekly_summary_list(request):
+    summaries = WeeklySalesRecord.objects.order_by('-week_start')  # Newest first
+    return render(request, "weekly_summary_list.html", {"summaries": summaries})
+
+def download_weekly_summary_pdf(request, summary_id):
+    summary = WeeklySalesRecord.objects.get(id=summary_id)
+    html_string = render_to_string('download_weekly_summary_pdf.html', {'summary': summary})
+
+    html = HTML(string=html_string)
+    pdf_file = html.write_pdf()
+
+    response = HttpResponse(pdf_file, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="weekly_summary_{summary.week_start}.pdf"'
+    return response
+

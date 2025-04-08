@@ -11,16 +11,19 @@
 
     {% load static %}
 
-    <title>AutoStock - Dashboard</title>
+    <title>Autostock-Sales Summary</title>
 
-    <!-- Custom fonts for this template-->
+    <!-- Custom fonts for this template -->
     <link href="{% static 'vendor/fontawesome-free/css/all.min.css' %}" rel="stylesheet" type="text/css">
     <link
         href="https://fonts.googleapis.com/css?family=Nunito:200,200i,300,300i,400,400i,600,600i,700,700i,800,800i,900,900i"
         rel="stylesheet">
 
-    <!-- Custom styles for this template-->
+    <!-- Custom styles for this template -->
     <link href="{% static 'css/sb-admin-2.min.css' %}" rel="stylesheet">
+
+    <!-- Custom styles for this page -->
+    <link href="{% static 'vendor/datatables/dataTables.bootstrap4.min.css' %}" rel="stylesheet">
 
 </head>
 
@@ -44,7 +47,7 @@
             <hr class="sidebar-divider my-0">
 
             <!-- Nav Item - Dashboard -->
-            <li class="nav-item active">
+            <li class="nav-item">
                 <a class="nav-link" href="{% url 'index' %}">
                     <i class="fas fa-fw fa-tachometer-alt"></i>
                     <span>Dashboard</span></a>
@@ -59,7 +62,7 @@
             </div>
 
             <!-- Nav Item - Pages Collapse Menu -->
-            <li class="nav-item">
+           <li class="nav-item">
                 <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseTwo"
                     aria-expanded="true" aria-controls="collapseTwo">
                     <i class="fas fa-fw fa-cog"></i>
@@ -68,7 +71,7 @@
                 <div id="collapseTwo" class="collapse" aria-labelledby="headingTwo" data-parent="#accordionSidebar">
                     <div class="bg-white py-2 collapse-inner rounded">
                         <h6 class="collapse-header">Stock Management:</h6>
-                        <a class="collapse-item" href="{% url 'newstock' %}">Add Stock</a> 
+                        <a class="collapse-item" href="{% url 'newstock' %}">Add Stock</a>
                         <a class="collapse-item" href="{% url 'stocks' %}">View Stock</a>
                         <a class="collapse-item" href="{% url 'totalstock' %}">Inventory</a>
                         <a class="collapse-item" href="{% url 'newsupplier' %}">Add Supplier</a>
@@ -78,7 +81,7 @@
             </li>
 
             <!-- Nav Item - Utilities Collapse Menu -->
-            <li class="nav-item">
+           <li class="nav-item">
                 <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseUtilities"
                     aria-expanded="true" aria-controls="collapseUtilities">
                     <i class="fas fa-fw fa-wrench"></i>
@@ -125,8 +128,6 @@
 
             <!-- Nav Item - Charts -->
 
-            <!-- Nav Item - Tables -->
-
 
             <!-- Divider -->
             <hr class="sidebar-divider d-none d-md-block">
@@ -135,9 +136,6 @@
             <div class="text-center d-none d-md-inline">
                 <button class="rounded-circle border-0" id="sidebarToggle"></button>
             </div>
-
-            <!-- Sidebar Message -->
-
 
         </ul>
         <!-- End of Sidebar -->
@@ -152,9 +150,11 @@
                 <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
 
                     <!-- Sidebar Toggle (Topbar) -->
-                    <button id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3">
-                        <i class="fa fa-bars"></i>
-                    </button>
+                    <form class="form-inline">
+                        <button id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                    </form>
 
                     <!-- Topbar Search -->
                     <form
@@ -174,7 +174,7 @@
                     <ul class="navbar-nav ml-auto">
 
                         <!-- Nav Item - Search Dropdown (Visible Only XS) -->
-                           <li class="nav-item dropdown no-arrow d-sm-none">
+                        <li class="nav-item dropdown no-arrow d-sm-none">
                             <a class="nav-link dropdown-toggle" href="#" id="searchDropdown" role="button"
                                 data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                 <i class="fas fa-search fa-fw"></i>
@@ -197,22 +197,7 @@
                             </div>
                         </li>
 
-                       <!-- Nav Item - Alerts -->
-                        <li class="nav-item dropdown no-arrow mx-1">
-                             <a class="nav-link dropdown-toggle" href="#" id="alertsDropdown" role="button"
-                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                <i class="fas fa-bell fa-fw"></i>
-                        <!-- Counter - Alerts -->
-                               <span class="badge badge-danger badge-counter" id="alertCounter">0</span>
-                              </a>
-                            <!-- Dropdown - Alerts -->
-                             <div class="dropdown-list dropdown-menu dropdown-menu-right shadow animated--grow-in"
-                                 aria-labelledby="alertsDropdown" id="alertsDropdownMenu">
-                                 <h6 class="dropdown-header">Alerts Center</h6>
-                            <!-- Alerts will be inserted here -->
-                              </div>
-                        </li>
-
+                        <!-- Nav Item - Alerts -->
 
                         <!-- Nav Item - Messages -->
 
@@ -220,23 +205,18 @@
 
                         <!-- Nav Item - User Information -->
                         <li class="nav-item dropdown no-arrow">
-
                             <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
-                                      data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                    <span class="mr-2 d-none d-lg-inline text-gray-600 small">AutoStock</span>
-                                    <img class="img-profile rounded-circle"
-                                         src="{% if user.userprofile.profile_picture %}{{ user.userprofile.profile_picture.url }}{% else %}{% static 'img/undraw_profile.svg' %}{% endif %}">
-
+                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <span class="mr-2 d-none d-lg-inline text-gray-600 small">Douglas McGee</span>
+                                <img class="img-profile rounded-circle"
+                                    src="{% static 'img/undraw_profile.svg' %}">
                             </a>
                             <!-- Dropdown - User Information -->
                             <div class="dropdown-menu dropdown-menu-right shadow animated--grow-in"
                                 aria-labelledby="userDropdown">
-                                <a class="nav-link" href="{% url 'edit_profile' %}">
+                                <a class="dropdown-item" href="#">
                                     <i class="fas fa-user fa-sm fa-fw mr-2 text-gray-400"></i>
                                     Profile
-
-
-
                                 </a>
                                 <a class="dropdown-item" href="#">
                                     <i class="fas fa-cogs fa-sm fa-fw mr-2 text-gray-400"></i>
@@ -260,92 +240,21 @@
                 <!-- End of Topbar -->
 
                 <!-- Begin Page Content -->
-                <div class="container-fluid">
-
-    <!-- Page Heading -->
-    <h1 class="h3 mb-4 text-gray-800">Dashboard</h1>
-
-    <div class="row">
-
-        <!-- Total Stock Card -->
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-primary shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                                Total Stock</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_stock }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-boxes fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Weekly Sales Revenue Card -->
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-success shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                                Weekly Sales</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">Ksh{{ weekly_revenue }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Weekly Profit Card -->
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-info shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                                Weekly Profit</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">Ksh{{ weekly_profit }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-chart-line fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-    </div>
-
-    <!-- Earnings Overview Graph -->
-   <div class="row">
-    <div class="col-xl-8 col-lg-7">
-        <div class="card shadow mb-4">
-            <!-- Card Header -->
-            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                <h6 class="m-0 font-weight-bold text-primary">Earnings Overview</h6>
-            </div>
-
-            <!-- Chart Body -->
-            <div class="card-body">
-                <div class="chart-area">
-                    <canvas id="myCreativeChart"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 
 
-</div>
+                <form method="POST" enctype="multipart/form-data">
+                                                   {% csrf_token %}
+
+                                   <!-- Profile Picture input -->
+                                       <div class="form-group">
+                                         <label for="profile_picture">Profile Picture</label>
+                                         <input type="file" name="profile_picture" id="profile_picture" class="form-control-sm">
+                                        </div>
+
+                                         <!-- Submit Button -->
+                                       <button type="submit" class="btn btn-primary btn-sm">Save Profile Picture</button>
+                                   </form>
                 <!-- /.container-fluid -->
-
 
             </div>
             <!-- End of Main Content -->
@@ -402,53 +311,11 @@
     <script src="{% static 'js/sb-admin-2.min.js' %}"></script>
 
     <!-- Page level plugins -->
-    <script src="{% static 'vendor/chart.js/Chart.min.js' %}"></script>
+    <script src="{% static 'vendor/datatables/jquery.dataTables.min.js' %}"></script>
+    <script src="{% static 'vendor/datatables/dataTables.bootstrap4.min.js' %}"></script>
 
     <!-- Page level custom scripts -->
-    <script src="{% static 'js/demo/chart-area-demo.js' %}"></script>
-    <script src="{% static 'js/demo/chart-pie-demo.js' %}"></script>
-
-
-<script>
-    document.addEventListener("DOMContentLoaded", function() {
-        fetch('/api/low-stock-alerts/')
-            .then(response => response.json())
-            .then(data => {
-                let alertsContainer = document.getElementById("alertsDropdownMenu");
-
-                if (data.alerts.length > 0) {
-                    data.alerts.forEach(alert => {
-                        let alertItem = document.createElement("a");
-                        alertItem.classList.add("dropdown-item", "d-flex", "align-items-center");
-                        alertItem.href = "#";
-                        alertItem.innerHTML = `
-                            <div class="mr-3">
-                                <div class="icon-circle bg-warning">
-                                    <i class="fas fa-exclamation-triangle text-white"></i>
-                                </div>
-                            </div>
-                            <div>
-                                <div class="small text-gray-500">${alert.date}</div>
-                                Low stock alert: Only ${alert.quantity} ${alert.product} left!
-                            </div>
-                        `;
-                        alertsContainer.appendChild(alertItem);
-                    });
-                } else {
-                    alertsContainer.innerHTML = `<a class="dropdown-item text-center small text-gray-500">No alerts</a>`;
-                }
-            })
-            .catch(error => console.error("Error fetching alerts:", error));
-    });
-</script>
-
-
-
-
-
-
-
-
+    <script src="{% static 'js/demo/datatables-demo.js' %}"></script>
 
 </body>
 

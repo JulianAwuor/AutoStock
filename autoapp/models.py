@@ -1,5 +1,6 @@
 from django.db import models
 from decimal import Decimal
+from django.contrib.auth.models import User
 
 
 
@@ -50,3 +51,22 @@ class Sale(models.Model):
         if hasattr(self.product, 'buyingprice'):
             return self.quantitysold * (self.sellingprice - self.product.buyingprice)
         return Decimal(0)  # If buying price is missing, return 0
+
+
+class UserProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    profile_picture = models.ImageField(upload_to='profile_pics/', blank=True, null=True)
+
+    def __str__(self):
+        return self.user.username
+
+
+class WeeklySalesRecord(models.Model):
+    week_start = models.DateField()
+    week_end = models.DateField()
+    total_revenue = models.DecimalField(max_digits=12, decimal_places=2)
+    total_profit = models.DecimalField(max_digits=12, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Week of {self.week_start} to {self.week_end}"
