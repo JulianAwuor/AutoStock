@@ -1,7 +1,7 @@
 from django.shortcuts import render,redirect,get_object_or_404
 from autoapp.models import Stock,Supplier,Sale,UserProfile,WeeklySalesRecord
 from autoapp.forms import StockForm,SupplierForm,ProfileForm
-from django.db.models import Sum,Q
+from django.db.models import Sum,Q,F,ExpressionWrapper,DecimalField
 from django.contrib import messages
 from decimal import Decimal
 from django.utils.timezone import now
@@ -10,11 +10,12 @@ from django.http import JsonResponse,HttpResponse
 from collections import defaultdict
 from django.template.loader import render_to_string
 from weasyprint import HTML
-
-
+from calendar import monthrange
+from django.core.paginator import Paginator
 
 
 # Create your views here.
+
 def index(request):
     today = now().date()
     week_start = today - timedelta(days=today.weekday())  # Monday of this week
@@ -73,15 +74,20 @@ def newstock(request):
 
 
 def stocks(request):
-    query = request.GET.get('q')  # (x) Get search input from URL
+    query = request.GET.get('q')  # Get search input from URL
     if query:
         allstocks = Stock.objects.filter(
             Q(product__icontains=query) | Q(name__icontains=query)
         )
     else:
         allstocks = Stock.objects.all()
-    return render(request, 'stocks.html', {'stock': allstocks})
 
+    # Add pagination here — 10 items per page
+    paginator = Paginator(allstocks, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    return render(request, 'stocks.html', {'stock': page_obj})
 
 def newsupplier(request):
     if request.method == 'POST':
@@ -242,38 +248,65 @@ def addsale(request):
 
 def salesummary(request):
     today = now().date()
-    week_start = today - timedelta(days=today.weekday())  # Monday of this week
-    week_end = week_start + timedelta(days=6)  # Sunday of this week
 
+    # Weekly range
+    week_start = today - timedelta(days=today.weekday())  # Monday
+    week_end = week_start + timedelta(days=6)  # Sunday
+
+    # Monthly range
+    month_start = today.replace(day=1)
+    last_day = monthrange(today.year, today.month)[1]
+    month_end = today.replace(day=last_day)
+
+    # Queries
     daily_sales = Sale.objects.filter(datesold=today)
     weekly_sales = Sale.objects.filter(datesold__range=[week_start, week_end])
+    monthly_sales = Sale.objects.filter(datesold__range=[month_start, month_end])
 
+    # Daily calculations
     daily_revenue = sum(sale.total_sale for sale in daily_sales)
     daily_profit = sum(sale.profit for sale in daily_sales)
 
+    # Weekly calculations
     weekly_revenue = sum(sale.total_sale for sale in weekly_sales)
     weekly_profit = sum(sale.profit for sale in weekly_sales)
+
+    # Monthly calculations
+    monthly_revenue = sum(sale.total_sale for sale in monthly_sales)
+    monthly_profit = sum(sale.profit for sale in monthly_sales)
 
     context = {
         "daily_revenue": daily_revenue,
         "daily_profit": daily_profit,
         "weekly_revenue": weekly_revenue,
         "weekly_profit": weekly_profit,
+        "monthly_revenue": monthly_revenue,
+        "monthly_profit": monthly_profit,
         "today": today,
         "week_start": week_start,
         "week_end": week_end,
+        "month_start": month_start,
+        "month_end": month_end,
     }
+
     return render(request, "salesummary.html", context)
 
-
 def saleslist(request):
-    sales = Sale.objects.all().order_by('-datesold')  # Display latest sales first
+    query = request.GET.get('q')  # Get search input from URL
+    if query:
+        sales = Sale.objects.filter(
+            Q(product__icontains=query) |
+            Q(datesold__icontains=query)
+        )
+    else:
+        sales = Sale.objects.all()
 
-    context = {
-        "sales": sales,
-    }
-    return render(request, "saleslist.html", context)
+    # Add pagination — 10 sales per page
+    paginator = Paginator(sales.order_by('-datesold'), 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
 
+    return render(request, 'saleslist.html', {'sales': page_obj})
 
 def weekly_sales_data(request):
     today = now().date()
@@ -362,3 +395,25 @@ def download_weekly_summary_pdf(request, summary_id):
     response['Content-Disposition'] = f'attachment; filename="weekly_summary_{summary.week_start}.pdf"'
     return response
 
+def product_tracker(request, product_id):
+    product = get_object_or_404(Stock, id=product_id)
+
+    sales = Sale.objects.filter(product=product)
+
+    # Aggregated values
+    total_quantity_sold = sales.aggregate(total=Sum("quantitysold"))["total"] or 0
+    total_revenue = sum(sale.quantitysold * sale.sellingprice for sale in sales)
+    total_profit = sum(sale.quantitysold * (sale.sellingprice - product.buyingprice) for sale in sales)
+
+    # Distinct sales dates
+    sales_dates = sales.values("datesold").distinct().order_by("-datesold")
+
+    context = {
+        "product": product,
+        "total_quantity_sold": total_quantity_sold,
+        "total_revenue": total_revenue,
+        "total_profit": total_profit,
+        "sales_dates": sales_dates,
+    }
+
+    return render(request, "product_tracker.html", context)

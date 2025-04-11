@@ -242,36 +242,73 @@
                 <!-- Begin Page Content -->
 
 
-                 <table class="table">
-                      <tr>
-                           <th>Product Name</th>
-                           <th>Quantity</th>
-                           <th>Price Per Item</th>
-                           <th>Buying Price per Item</th>
-                           <th>Supplier Name</th>
-                           <th>Date Added</th>
-                           <th>Action</th>
-                      </tr>
+                <table class="table">
+    <tr>
+        <th>Product Name</th>
+        <th>Quantity</th>
+        <th>Price Per Item</th>
+        <th>Buying Price per Item</th>
+        <th>Supplier Name</th>
+        <th>Date Added</th>
+        <th>Action</th>
+    </tr>
 
-           {% for x in stock %}
-                     <tr>
-                       <td>{{ x.product }}</td>
-                       <td>{{ x.quantity }}</td>
-                       <td>{{ x.price }}</td>
-                       <td>{{ x.buyingprice }}</td>
-                       <td>{{ x.name }}</td>
-                       <td>{{ x.date }}</td>
-                       <td>
-                           <a href="/editstock/{{ x.id }}" class="btn btn-primary">EDIT</a>
-                           <a href="/delete/{{ x.id }}" class="btn btn-danger">DELETE</a>
-                        </td>
-                     </tr>
-                  {% empty %}
-                     <tr>
-                       <td colspan="7" class="text-center">No results found.</td>
-                     </tr>
-                  {% endfor %}
-                 </table>
+    {% for x in stock %}
+        <tr>
+            <td>{{ x.product }}</td>
+            <td>{{ x.quantity }}</td>
+            <td>{{ x.price }}</td>
+            <td>{{ x.buyingprice }}</td>
+            <td>{{ x.name }}</td>
+            <td>{{ x.date }}</td>
+            <td>
+                <a href="/editstock/{{ x.id }}" class="btn btn-primary">EDIT</a>
+                <a href="/delete/{{ x.id }}" class="btn btn-danger">DELETE</a>
+                 <a href="{% url 'product_tracker' x.id %}" class="btn btn-info">VIEW</a>
+            </td>
+        </tr>
+    {% empty %}
+        <tr>
+            <td colspan="7" class="text-center">No results found.</td>
+        </tr>
+    {% endfor %}
+</table>
+
+<!-- Pagination controls -->
+<div class="d-flex justify-content-center">
+    <nav>
+        <ul class="pagination">
+            {% if stock.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ stock.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">Previous</a>
+                </li>
+            {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">Previous</span>
+                </li>
+            {% endif %}
+
+            {% for num in stock.paginator.page_range %}
+                {% if stock.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                {% else %}
+                    <li class="page-item"><a class="page-link" href="?page={{ num }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">{{ num }}</a></li>
+                {% endif %}
+            {% endfor %}
+
+            {% if stock.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ stock.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">Next</a>
+                </li>
+            {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">Next</span>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+</div>
+
                 <!-- /.container-fluid -->
 
             </div>

@@ -11,7 +11,7 @@
 
     {% load static %}
 
-    <title>Autostock-Sales Summary</title>
+    <title>Autostock - Product Tracker</title>
 
     <!-- Custom fonts for this template -->
     <link href="{% static 'vendor/fontawesome-free/css/all.min.css' %}" rel="stylesheet" type="text/css">
@@ -81,7 +81,7 @@
             </li>
 
             <!-- Nav Item - Utilities Collapse Menu -->
-           <li class="nav-item">
+            <li class="nav-item">
                 <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseUtilities"
                     aria-expanded="true" aria-controls="collapseUtilities">
                     <i class="fas fa-fw fa-wrench"></i>
@@ -126,7 +126,6 @@
                 </div>
             </li>
 
-            <!-- Nav Item - Charts -->
 
 
             <!-- Divider -->
@@ -207,7 +206,7 @@
                         <li class="nav-item dropdown no-arrow">
                             <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
                                 data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                <span class="mr-2 d-none d-lg-inline text-gray-600 small">Douglas McGee</span>
+                                <span class="mr-2 d-none d-lg-inline text-gray-600 small">AutoStock</span>
                                 <img class="img-profile rounded-circle"
                                     src="{% static 'img/undraw_profile.svg' %}">
                             </a>
@@ -243,53 +242,43 @@
 
 
              <div class="container mt-5">
-    <h2 class="text-center">Sales Summary</h2>
+    <h2 class="text-center">{{ product.product }} Performance</h2>
 
-    <div class="row">
-        <!-- Daily Sales -->
-        <div class="col-md-4">
-            <div class="card text-white bg-primary mb-3">
-                <div class="card-header text-black-50">Daily Sales Summary ({{ today }})</div>
-                <div class="card-body">
-                    <h5 class="card-title">Revenue: KSH {{ daily_revenue }}</h5>
-                    <p class="card-text">Profit: KSH {{ daily_profit }}</p>
-                </div>
-            </div>
-        </div>
+    <table class="table table-striped mt-4">
+        <thead class="table-dark">
+            <tr>
+                <th>Total Quantity Sold</th>
+                <th>Total Revenue (KSH)</th>
+                <th>Total Profit (KSH)</th>
+                <th>Sales Dates</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>{{ total_quantity_sold }}</td>
+                <td>{{ total_revenue }}</td>
+                <td>{{ total_profit }}</td>
+                <td>
+                    <ul>
+                        {% for date in sales_dates %}
+                            <li>{{ date.datesold|date:"M d, Y" }}</li>
+                        {% empty %}
+                            <li>No sales yet</li>
+                        {% endfor %}
+                    </ul>
+                </td>
+            </tr>
+        </tbody>
+    </table>
 
-        <!-- Weekly Sales -->
-        <div class="col-md-4">
-            <div class="card text-white bg-success mb-3">
-                <div class="card-header text-black-50">Weekly Sales Summary ({{ week_start }} - {{ week_end }})</div>
-                <div class="card-body">
-                    <h5 class="card-title">Revenue: KSH {{ weekly_revenue }}</h5>
-                    <p class="card-text">Profit: KSH {{ weekly_profit }}</p>
-
-                    <!-- Save Button -->
-
-                </div>
-            </div>
-        </div>
-
-        <!-- Monthly Sales -->
-        <div class="col-md-4">
-            <div class="card text-white bg-info mb-3">
-                <div class="card-header text-black-50">Monthly Sales Summary ({{ month_start }} - {{ month_end }})</div>
-                <div class="card-body">
-                    <h5 class="card-title">Revenue: KSH {{ monthly_revenue }}</h5>
-                    <p class="card-text">Profit: KSH {{ monthly_profit }}</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Sales List Link -->
     <div class="text-center mt-4">
-        <a href="{% url 'saleslist' %}" class="btn btn-secondary">View Sales List</a>
+        <a href="{% url 'stocks' %}" class="btn btn-primary">Back to Product List</a>
     </div>
-
-
 </div>
+
+                <!-- /.container-fluid -->
+
+            </div>
             <!-- End of Main Content -->
 
             <!-- Footer -->

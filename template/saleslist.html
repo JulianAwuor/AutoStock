@@ -179,21 +179,21 @@
                                 <i class="fas fa-search fa-fw"></i>
                             </a>
                             <!-- Dropdown - Messages -->
-                            <div class="dropdown-menu dropdown-menu-right p-3 shadow animated--grow-in"
-                                aria-labelledby="searchDropdown">
-                                <form class="form-inline mr-auto w-100 navbar-search">
-                                    <div class="input-group">
-                                        <input type="text" class="form-control bg-light border-0 small"
-                                            placeholder="Search for..." aria-label="Search"
-                                            aria-describedby="basic-addon2">
-                                        <div class="input-group-append">
-                                            <button class="btn btn-primary" type="button">
-                                                <i class="fas fa-search fa-sm"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </form>
-                            </div>
+                           <div class="dropdown-menu dropdown-menu-right p-3 shadow animated--grow-in"
+                                   aria-labelledby="searchDropdown">
+                             <form method="GET" action="{% url 'saleslist' %}" class="form-inline mr-auto w-100 navbar-search">
+                                 <div class="input-group">
+                                    <input type="text" name="q" class="form-control bg-light border-0 small"
+                                     placeholder="Search by product or date..." aria-label="Search" aria-describedby="basic-addon2" value="{{ request.GET.q }}">
+                                   <div class="input-group-append">
+                                     <button class="btn btn-primary" type="submit">
+                                        <i class="fas fa-search fa-sm"></i>
+                                     </button>
+                                   </div>
+                                  </div>
+                             </form>
+                           </div>
+
                         </li>
 
                         <!-- Nav Item - Alerts -->
@@ -241,10 +241,7 @@
                 <!-- Begin Page Content -->
 
 
-               <div class="container mt-5">
-    <h2 class="text-center">Sales List</h2>
-
-    <table class="table table-striped mt-4">
+                 <table class="table table-striped mt-4">
         <thead class="table-dark">
             <tr>
                 <th>#</th>
@@ -273,15 +270,52 @@
         </tbody>
     </table>
 
+    <!-- Pagination Controls -->
+    {% if sales.has_other_pages %}
+    <nav aria-label="Page navigation example">
+        <ul class="pagination justify-content-center">
+            {% if sales.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?q={{ request.GET.q }}&page={{ sales.previous_page_number }}">Previous</a>
+            </li>
+            {% else %}
+            <li class="page-item disabled">
+                <span class="page-link">Previous</span>
+            </li>
+            {% endif %}
+
+            {% for num in sales.paginator.page_range %}
+                {% if sales.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                {% else %}
+                    <li class="page-item">
+                        <a class="page-link" href="?q={{ request.GET.q }}&page={{ num }}">{{ num }}</a>
+                    </li>
+                {% endif %}
+            {% endfor %}
+
+            {% if sales.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?q={{ request.GET.q }}&page={{ sales.next_page_number }}">Next</a>
+            </li>
+            {% else %}
+            <li class="page-item disabled">
+                <span class="page-link">Next</span>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+
     <div class="text-center mt-4">
         <a href="{% url 'salesummary' %}" class="btn btn-primary">View Sales Summary</a>
     </div>
 </div>
-
                 <!-- /.container-fluid -->
 
             </div>
             <!-- End of Main Content -->
+        <br><br><br><br>
 
             <!-- Footer -->
             <footer class="sticky-footer bg-white">
