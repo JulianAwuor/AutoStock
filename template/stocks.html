@@ -269,18 +269,18 @@
         </tr>
     {% empty %}
         <tr>
-            <td colspan="7" class="text-center">No results found.</td>
+             <td colspan="6" class="text-center text-danger">No stock recorded yet.</td>
         </tr>
     {% endfor %}
 </table>
 
 <!-- Pagination controls -->
-<div class="d-flex justify-content-center">
-    <nav>
+<div class="d-flex justify-content-center mt-4">
+    <nav aria-label="Page navigation">
         <ul class="pagination">
             {% if stock.has_previous %}
                 <li class="page-item">
-                    <a class="page-link" href="?page={{ stock.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">Previous</a>
+                    <a class="page-link" href="?q={{ query }}&page={{ stock.previous_page_number }}">Previous</a>
                 </li>
             {% else %}
                 <li class="page-item disabled">
@@ -291,14 +291,14 @@
             {% for num in stock.paginator.page_range %}
                 {% if stock.number == num %}
                     <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-                {% else %}
-                    <li class="page-item"><a class="page-link" href="?page={{ num }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">{{ num }}</a></li>
+                {% elif num > stock.number|add:'-3' and num < stock.number|add:'3' %}
+                    <li class="page-item"><a class="page-link" href="?q={{ query }}&page={{ num }}">{{ num }}</a></li>
                 {% endif %}
             {% endfor %}
 
             {% if stock.has_next %}
                 <li class="page-item">
-                    <a class="page-link" href="?page={{ stock.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">Next</a>
+                    <a class="page-link" href="?q={{ query }}&page={{ stock.next_page_number }}">Next</a>
                 </li>
             {% else %}
                 <li class="page-item disabled">
@@ -308,7 +308,6 @@
         </ul>
     </nav>
 </div>
-
                 <!-- /.container-fluid -->
 
             </div>

@@ -11,7 +11,7 @@
 
     {% load static %}
 
-    <title>Autostock-Sales Summary</title>
+    <title>Autostock - Product Tracker</title>
 
     <!-- Custom fonts for this template -->
     <link href="{% static 'vendor/fontawesome-free/css/all.min.css' %}" rel="stylesheet" type="text/css">
@@ -81,7 +81,7 @@
             </li>
 
             <!-- Nav Item - Utilities Collapse Menu -->
-           <li class="nav-item">
+            <li class="nav-item">
                 <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseUtilities"
                     aria-expanded="true" aria-controls="collapseUtilities">
                     <i class="fas fa-fw fa-wrench"></i>
@@ -126,7 +126,6 @@
                 </div>
             </li>
 
-            <!-- Nav Item - Charts -->
 
 
             <!-- Divider -->
@@ -207,7 +206,7 @@
                         <li class="nav-item dropdown no-arrow">
                             <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
                                 data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                <span class="mr-2 d-none d-lg-inline text-gray-600 small">Douglas McGee</span>
+                                <span class="mr-2 d-none d-lg-inline text-gray-600 small">AutoStock</span>
                                 <img class="img-profile rounded-circle"
                                     src="{% static 'img/undraw_profile.svg' %}">
                             </a>
@@ -242,43 +241,142 @@
                 <!-- Begin Page Content -->
 
 
-              <div class="container mt-5">
-    <h2 class="text-center mb-4">Saved Weekly Sales Summaries</h2>
+             <div class="container mt-4">
+  <h2>Sales Report</h2>
 
-    {% if summaries %}
-        <table class="table table-bordered table-striped">
-            <thead class="thead-dark">
-                <tr>
-                    <th>Week Start</th>
-                    <th>Week End</th>
-                    <th>Total Revenue (KSH)</th>
-                    <th>Total Profit (KSH)</th>
-                    <th>Saved On</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for summary in summaries %}
-                <tr>
-                    <td>{{ summary.week_start }}</td>
-                    <td>{{ summary.week_end }}</td>
-                    <td>{{ summary.total_revenue }}</td>
-                    <td>{{ summary.total_profit }}</td>
-                    <td>{{ summary.saved_on }}</td>
-                    <td>
-                       <a href="{% url 'download_weekly_summary_pdf' summary.id %}" class="btn btn-sm btn-outline-primary">
-                       Download PDF
-                       </a>
-                    </td>
+  <!-- Filter by Date Range -->
+  <form method="get" class="row g-3 mb-4">
+    <div class="col-auto">
+      <label>Start Date:</label>
+      <input type="date" name="start_date" class="form-control" value="{{ start_date }}">
+    </div>
+    <div class="col-auto">
+      <label>End Date:</label>
+      <input type="date" name="end_date" class="form-control" value="{{ end_date }}">
+    </div>
+    <div class="col-auto mt-4">
+      <button type="submit" class="btn btn-primary">Generate Report</button>
+    </div>
+  </form>
 
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    {% else %}
-        <p class="text-center">No summaries saved yet.</p>
-    {% endif %}
+  <!-- Summary Stats -->
+  <div class="row mb-4">
+    <div class="col-md-3">
+      <div class="card bg-success text-white">
+        <div class="card-body">
+          <h5>Total Sales:</h5>
+          <p>Ksh {{ total_sales|floatformat:2 }}</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-warning text-dark">
+        <div class="card-body">
+          <h5>Total Profit:</h5>
+          <p>Ksh {{ total_profit|floatformat:2 }}</p>
+        </div>
+      </div>
+    </div>
+   <div class="col-md-2">
+  <div class="card bg-light">
+    <div class="card-body">
+      <h5 class="card-title">Daily Sales:</h5>
+      <p>Units Sold: {{ daily_total_quantity }}</p>
+      <p>Amount Earned: Ksh {{ daily_total_amount }}</p>
+    </div>
+  </div>
 </div>
 
+   <div class="col-md-2">
+  <div class="card bg-light">
+    <div class="card-body">
+      <h5 class="card-title">Weekly Sales:</h5>
+      <p>Units Sold: {{ weekly_total_quantity }}</p>
+      <p>Amount Earned: Ksh {{ weekly_total_amount }}</p>
+    </div>
+  </div>
+</div>
+    <div class="col-md-2">
+  <div class="card bg-light">
+    <div class="card-body">
+      <h5 class="card-title">Monthly Sales:</h5>
+      <p>Units Sold: {{ monthly_total_quantity }}</p>
+      <p>Amount Earned: Ksh {{ monthly_total_amount }}</p>
+    </div>
+  </div>
+</div>
+
+  </div>
+
+  <!-- Pie Chart -->
+  <div class="mb-5">
+    <h5>Product Performance</h5>
+    <canvas id="salesPieChart" width="400" height="200"></canvas>
+  </div>
+
+  <!-- Sales Table -->
+  <h5>Sales Breakdown</h5>
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Date Sold</th>
+        <th>Product</th>
+        <th>Quantity Sold</th>
+        <th>Selling Price</th>
+        <th>Total</th>
+        <th>Profit</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for sale in sales %}
+      <tr>
+        <td>{{ sale.datesold }}</td>
+        <td>{{ sale.product.product }}</td>
+        <td>{{ sale.quantitysold }}</td>
+        <td>Ksh {{ sale.sellingprice }}</td>
+        <td>Ksh {{ sale.total_sale }}</td>
+        <td>Ksh {{ sale.profit }}</td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="6">No sales data available for the selected period.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const ctx = document.getElementById('salesPieChart').getContext('2d');
+  const data = {
+    labels: {{ chart_data.keys|safe }},
+    datasets: [{
+      label: 'Product Sales',
+      data: {{ chart_data.values|safe }},
+      backgroundColor: [
+        'rgba(255, 99, 132, 0.6)',
+        'rgba(54, 162, 235, 0.6)',
+        'rgba(255, 206, 86, 0.6)',
+        'rgba(75, 192, 192, 0.6)',
+        'rgba(153, 102, 255, 0.6)',
+        'rgba(255, 159, 64, 0.6)'
+      ]
+    }]
+  };
+
+  const config = {
+    type: 'pie',
+    data: data,
+  };
+
+  new Chart(ctx, config);
+</script>
+
+                <!-- /.container-fluid -->
+
+            </div>
             <!-- End of Main Content -->
 
             <!-- Footer -->

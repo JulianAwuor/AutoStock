@@ -61,12 +61,3 @@ class UserProfile(models.Model):
         return self.user.username
 
 
-class WeeklySalesRecord(models.Model):
-    week_start = models.DateField()
-    week_end = models.DateField()
-    total_revenue = models.DecimalField(max_digits=12, decimal_places=2)
-    total_profit = models.DecimalField(max_digits=12, decimal_places=2)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"Week of {self.week_start} to {self.week_end}"

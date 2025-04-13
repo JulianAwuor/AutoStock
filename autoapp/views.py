@@ -1,11 +1,11 @@
 from django.shortcuts import render,redirect,get_object_or_404
-from autoapp.models import Stock,Supplier,Sale,UserProfile,WeeklySalesRecord
+from autoapp.models import Stock,Supplier,Sale,UserProfile
 from autoapp.forms import StockForm,SupplierForm,ProfileForm
 from django.db.models import Sum,Q,F,ExpressionWrapper,DecimalField
 from django.contrib import messages
 from decimal import Decimal
 from django.utils.timezone import now
-from datetime import timedelta,date
+from datetime import timedelta,date,datetime
 from django.http import JsonResponse,HttpResponse
 from collections import defaultdict
 from django.template.loader import render_to_string
@@ -82,12 +82,12 @@ def stocks(request):
     else:
         allstocks = Stock.objects.all()
 
-    # Add pagination here — 10 items per page
     paginator = Paginator(allstocks, 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
-    return render(request, 'stocks.html', {'stock': page_obj})
+    # 👇 Pass `query` to template
+    return render(request, 'stocks.html', {'stock': page_obj, 'query': query})
 
 def newsupplier(request):
     if request.method == 'POST':
@@ -292,21 +292,22 @@ def salesummary(request):
     return render(request, "salesummary.html", context)
 
 def saleslist(request):
-    query = request.GET.get('q')  # Get search input from URL
+    query = request.GET.get('q')
     if query:
-        sales = Sale.objects.filter(
-            Q(product__icontains=query) |
-            Q(datesold__icontains=query)
-        )
+        sales_queryset = Sale.objects.filter(
+            Q(product__product__icontains=query)
+        ).order_by('-datesold')
     else:
-        sales = Sale.objects.all()
+        sales_queryset = Sale.objects.all().order_by('-datesold')
 
-    # Add pagination — 10 sales per page
-    paginator = Paginator(sales.order_by('-datesold'), 10)
+    paginator = Paginator(sales_queryset, 10)  # Show 10 sales per page
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
-    return render(request, 'saleslist.html', {'sales': page_obj})
+    return render(request, 'saleslist.html', {
+        'sales': page_obj,       # 👉 This should be the paginated data
+        'query': query           # 👉 Optional: if you want to preserve search input in the form
+    })
 
 def weekly_sales_data(request):
     today = now().date()
@@ -355,45 +356,6 @@ def edit_profile(request):
 
     return render(request, 'edit_profile.html', {'form': form})
 
-def save_weekly_record(request):
-    today = now().date()
-    week_start = today - timedelta(days=today.weekday())
-    week_end = week_start + timedelta(days=6)
-
-    # Prevent duplicate saves
-    if WeeklySalesRecord.objects.filter(week_start=week_start, week_end=week_end).exists():
-        messages.warning(request, "This week's record has already been saved.")
-        return redirect("salesummary")
-
-    weekly_sales = Sale.objects.filter(datesold__range=[week_start, week_end])
-    total_revenue = sum(sale.total_sale for sale in weekly_sales)
-    total_profit = sum(sale.profit for sale in weekly_sales)
-
-    WeeklySalesRecord.objects.create(
-        week_start=week_start,
-        week_end=week_end,
-        total_revenue=total_revenue,
-        total_profit=total_profit,
-    )
-
-    messages.success(request, "Weekly sales record saved successfully.")
-    return redirect("salesummary")
-
-
-def weekly_summary_list(request):
-    summaries = WeeklySalesRecord.objects.order_by('-week_start')  # Newest first
-    return render(request, "weekly_summary_list.html", {"summaries": summaries})
-
-def download_weekly_summary_pdf(request, summary_id):
-    summary = WeeklySalesRecord.objects.get(id=summary_id)
-    html_string = render_to_string('download_weekly_summary_pdf.html', {'summary': summary})
-
-    html = HTML(string=html_string)
-    pdf_file = html.write_pdf()
-
-    response = HttpResponse(pdf_file, content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="weekly_summary_{summary.week_start}.pdf"'
-    return response
 
 def product_tracker(request, product_id):
     product = get_object_or_404(Stock, id=product_id)
@@ -417,3 +379,72 @@ def product_tracker(request, product_id):
     }
 
     return render(request, "product_tracker.html", context)
+
+
+def generate_report(request):
+    # Get date range from GET parameters
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+
+    today = date.today()
+    start_of_week = today - timedelta(days=today.weekday())
+    start_of_month = today.replace(day=1)
+
+    sales = Sale.objects.all()
+
+    if start_date and end_date:
+        sales = sales.filter(datesold__range=[start_date, end_date])
+    else:
+        # Fallback to current month if no range provided
+        sales = sales.filter(datesold__month=today.month)
+
+    # Totals
+    total_sales = sum(s.total_sale for s in sales)
+    total_profit = sum(s.profit for s in sales)
+
+    # Daily
+    daily_sales = sales.filter(datesold=today)
+    daily_units = sum(s.quantitysold for s in daily_sales)
+    daily_amount = sum(s.total_sale for s in daily_sales)
+
+    # Weekly
+    weekly_sales = sales.filter(datesold__gte=start_of_week, datesold__lte=today)
+    weekly_units = sum(s.quantitysold for s in weekly_sales)
+    weekly_amount = sum(s.total_sale for s in weekly_sales)
+
+    # Monthly
+    monthly_sales = sales.filter(datesold__gte=start_of_month, datesold__lte=today)
+    monthly_units = sum(s.quantitysold for s in monthly_sales)
+    monthly_amount = sum(s.total_sale for s in monthly_sales)
+
+    # Pie Chart Data
+    chart_data = defaultdict(int)
+    for sale in sales:
+        chart_data[sale.product.product] += sale.quantitysold
+
+    context = {
+        'sales': sales,
+        'total_sales': total_sales,
+        'total_profit': total_profit,
+
+        # Daily
+        'daily_total_quantity': daily_units,
+        'daily_total_amount': daily_amount,
+
+        # Weekly
+        'weekly_total_quantity': weekly_units,
+        'weekly_total_amount': weekly_amount,
+
+        # Monthly
+        'monthly_total_quantity': monthly_units,
+        'monthly_total_amount': monthly_amount,
+
+        'chart_data': {
+            'keys': list(chart_data.keys()),
+            'values': list(chart_data.values())
+        },
+        'start_date': start_date,
+        'end_date': end_date
+    }
+
+    return render(request, 'generate_report.html', context)
