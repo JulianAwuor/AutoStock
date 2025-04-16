@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Sales Report PDF</title>
+    <style>
+        body { font-family: sans-serif; }
+        .section { margin-bottom: 20px; }
+        table, th, td { border: 1px solid #000; border-collapse: collapse; }
+        th, td { padding: 8px; text-align: left; }
+        .summary-card { margin-bottom: 10px; padding: 10px; border: 1px solid #ccc; }
+    </style>
+</head>
+<body>
+    <h2>Sales Report ({{ start_date }} to {{ end_date }})</h2>
+
+    <div class="section">
+        <div class="summary-card"><strong>Total Sales:</strong> Ksh {{ total_sales|floatformat:2 }}</div>
+        <div class="summary-card"><strong>Total Profit:</strong> Ksh {{ total_profit|floatformat:2 }}</div>
+        <div class="summary-card"><strong>Daily Sales:</strong> Units: {{ daily_total_quantity }} | Ksh {{ daily_total_amount }}</div>
+        <div class="summary-card"><strong>Weekly Sales:</strong> Units: {{ weekly_total_quantity }} | Ksh {{ weekly_total_amount }}</div>
+        <div class="summary-card"><strong>Monthly Sales:</strong> Units: {{ monthly_total_quantity }} | Ksh {{ monthly_total_amount }}</div>
+    </div>
+
+    <div class="section">
+        <h3>Product Performance</h3>
+        {% if chart_image %}
+            <img src="{{ chart_image }}" alt="Sales Pie Chart" style="max-width: 300px;">
+        {% else %}
+            <p>No chart available.</p>
+        {% endif %}
+    </div>
+
+    <div class="section">
+        <h3>Sales Breakdown</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Product</th>
+                    <th>Qty</th>
+                    <th>Price</th>
+                    <th>Total</th>
+                    <th>Profit</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sale in sales %}
+                <tr>
+                    <td>{{ sale.datesold }}</td>
+                    <td>{{ sale.product.product }}</td>
+                    <td>{{ sale.quantitysold }}</td>
+                    <td>{{ sale.sellingprice }}</td>
+                    <td>{{ sale.total_sale }}</td>
+                    <td>{{ sale.profit }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6">No sales in this period.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

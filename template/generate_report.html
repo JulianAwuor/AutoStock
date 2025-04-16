@@ -258,6 +258,13 @@
       <button type="submit" class="btn btn-primary">Generate Report</button>
     </div>
   </form>
+                 <form method="post" action="{% url 'download_report_pdf' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="start_date" value="{{ start_date }}">
+                    <input type="hidden" name="end_date" value="{{ end_date }}">
+                    <input type="hidden" id="chart_image" name="chart_image">
+                    <button type="submit" class="btn btn-danger mt-2">Download PDF</button>
+                 </form>
 
   <!-- Summary Stats -->
   <div class="row mb-4">
@@ -309,10 +316,10 @@
   </div>
 
   <!-- Pie Chart -->
-  <div class="mb-5">
-    <h5>Product Performance</h5>
-    <canvas id="salesPieChart" width="400" height="200"></canvas>
-  </div>
+ <div class="mb-5" style="max-width: 400px;">
+  <h5>Product Performance</h5>
+  <canvas id="salesPieChart" width="300" height="300"></canvas>
+</div>
 
   <!-- Sales Table -->
   <h5>Sales Breakdown</h5>
@@ -372,6 +379,16 @@
   };
 
   new Chart(ctx, config);
+</script>
+
+
+<script>
+  const chartCanvas = document.getElementById('salesPieChart');
+  const chartForm = document.querySelector('form[action$="download_report_pdf/"]');
+  chartForm.addEventListener('submit', function () {
+    const imageData = chartCanvas.toDataURL();
+    document.getElementById('chart_image').value = imageData;
+  });
 </script>
 
                 <!-- /.container-fluid -->

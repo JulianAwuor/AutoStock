@@ -382,25 +382,30 @@ def product_tracker(request, product_id):
 
 
 def generate_report(request):
-    # Get date range from GET parameters
     start_date = request.GET.get('start_date')
     end_date = request.GET.get('end_date')
 
     today = date.today()
     start_of_week = today - timedelta(days=today.weekday())
     start_of_month = today.replace(day=1)
+    start_of_year = today.replace(month=1, day=1)
 
-    sales = Sale.objects.all()
+    all_sales = Sale.objects.all()
 
+    # Date range filtering for table & pie chart
     if start_date and end_date:
-        sales = sales.filter(datesold__range=[start_date, end_date])
+        sales = all_sales.filter(datesold__range=[start_date, end_date])
+        selected_start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+        selected_end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
     else:
-        # Fallback to current month if no range provided
-        sales = sales.filter(datesold__month=today.month)
+        sales = all_sales.filter(datesold__month=today.month)
+        selected_start_date = start_of_month
+        selected_end_date = today
 
-    # Totals
-    total_sales = sum(s.total_sale for s in sales)
-    total_profit = sum(s.profit for s in sales)
+    # Yearly Totals (can remain for the whole year regardless of filters)
+    yearly_sales = all_sales.filter(datesold__gte=start_of_year, datesold__lte=today)
+    total_sales = sum(s.total_sale for s in yearly_sales)
+    total_profit = sum(s.profit for s in yearly_sales)
 
     # Daily
     daily_sales = sales.filter(datesold=today)
@@ -412,8 +417,8 @@ def generate_report(request):
     weekly_units = sum(s.quantitysold for s in weekly_sales)
     weekly_amount = sum(s.total_sale for s in weekly_sales)
 
-    # Monthly
-    monthly_sales = sales.filter(datesold__gte=start_of_month, datesold__lte=today)
+    # Monthly — now dynamically based on selected date range
+    monthly_sales = sales.filter(datesold__gte=selected_start_date, datesold__lte=selected_end_date)
     monthly_units = sum(s.quantitysold for s in monthly_sales)
     monthly_amount = sum(s.total_sale for s in monthly_sales)
 
@@ -427,15 +432,10 @@ def generate_report(request):
         'total_sales': total_sales,
         'total_profit': total_profit,
 
-        # Daily
         'daily_total_quantity': daily_units,
         'daily_total_amount': daily_amount,
-
-        # Weekly
         'weekly_total_quantity': weekly_units,
         'weekly_total_amount': weekly_amount,
-
-        # Monthly
         'monthly_total_quantity': monthly_units,
         'monthly_total_amount': monthly_amount,
 
@@ -448,3 +448,74 @@ def generate_report(request):
     }
 
     return render(request, 'generate_report.html', context)
+
+
+def download_report_pdf(request):
+    if request.method == 'POST':
+        start_date = request.POST.get('start_date')
+        end_date = request.POST.get('end_date')
+        chart_image = request.POST.get('chart_image')
+
+        today = date.today()
+        start_of_week = today - timedelta(days=today.weekday())
+        start_of_year = today.replace(month=1, day=1)
+
+        all_sales = Sale.objects.all()
+
+        # Validate and parse dates
+        try:
+            if start_date:
+                start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+            if end_date:
+                end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+        except ValueError:
+            start_date = None
+            end_date = None
+
+        # Apply date filtering
+        if start_date and end_date:
+            sales = all_sales.filter(datesold__range=[start_date, end_date])
+        else:
+            # fallback to current month
+            start_of_month = today.replace(day=1)
+            sales = all_sales.filter(datesold__month=today.month)
+            start_date = start_of_month
+            end_date = today
+
+        yearly_sales = all_sales.filter(datesold__gte=start_of_year, datesold__lte=today)
+        total_sales = sum(s.total_sale for s in yearly_sales)
+        total_profit = sum(s.profit for s in yearly_sales)
+
+        # Daily & Weekly ranges are still based on today's date
+        daily_sales = sales.filter(datesold=today)
+        weekly_sales = sales.filter(datesold__gte=start_of_week, datesold__lte=today)
+
+        # ✅ Monthly — now correctly based on selected date range
+        monthly_sales = sales.filter(datesold__gte=start_date, datesold__lte=end_date)
+
+        chart_data = defaultdict(int)
+        for sale in sales:
+            chart_data[sale.product.product] += sale.quantitysold
+
+        context = {
+            'sales': sales,
+            'total_sales': total_sales,
+            'total_profit': total_profit,
+            'daily_total_quantity': sum(s.quantitysold for s in daily_sales),
+            'daily_total_amount': sum(s.total_sale for s in daily_sales),
+            'weekly_total_quantity': sum(s.quantitysold for s in weekly_sales),
+            'weekly_total_amount': sum(s.total_sale for s in weekly_sales),
+            'monthly_total_quantity': sum(s.quantitysold for s in monthly_sales),
+            'monthly_total_amount': sum(s.total_sale for s in monthly_sales),
+            'chart_image': chart_image,
+            'start_date': start_date,
+            'end_date': end_date,
+        }
+
+        html_string = render_to_string('download_report_pdf.html', context)
+        html = HTML(string=html_string)
+        pdf = html.write_pdf()
+
+        response = HttpResponse(pdf, content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="sales_report.pdf"'
+        return response

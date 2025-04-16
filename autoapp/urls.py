@@ -35,6 +35,7 @@ urlpatterns = [
     path('edit_profile/', views.edit_profile, name='edit_profile'),
     path('product_tracker/<int:product_id>/', views.product_tracker, name='product_tracker'),
     path('generate_report/', views.generate_report, name='generate_report'),
+    path('download_report_pdf/', views.download_report_pdf, name='download_report_pdf'),
 
 
 
