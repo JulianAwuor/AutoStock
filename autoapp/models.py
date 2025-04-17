@@ -53,11 +53,14 @@ class Sale(models.Model):
         return Decimal(0)  # If buying price is missing, return 0
 
 
-class UserProfile(models.Model):
+
+
+class EmployeeProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    profile_picture = models.ImageField(upload_to='profile_pics/', blank=True, null=True)
+    nationalid = models.CharField(max_length=20, blank=True, null=True)
+    email = models.EmailField()
+    phone = models.CharField(max_length=50)
+    password = models. CharField(max_length=100)
 
     def __str__(self):
         return self.user.username
-
-

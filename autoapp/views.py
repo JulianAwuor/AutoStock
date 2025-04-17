@@ -1,6 +1,6 @@
 from django.shortcuts import render,redirect,get_object_or_404
-from autoapp.models import Stock,Supplier,Sale,UserProfile
-from autoapp.forms import StockForm,SupplierForm,ProfileForm
+from autoapp.models import Stock,Supplier,Sale,EmployeeProfile
+from autoapp.forms import StockForm,SupplierForm,EmployeeRegisterForm
 from django.db.models import Sum,Q,F,ExpressionWrapper,DecimalField
 from django.contrib import messages
 from decimal import Decimal
@@ -12,6 +12,8 @@ from django.template.loader import render_to_string
 from weasyprint import HTML
 from calendar import monthrange
 from django.core.paginator import Paginator
+from django.contrib.auth.decorators import login_required
+
 
 
 # Create your views here.
@@ -343,19 +345,6 @@ def low_stock_alert(request):
 
 
 
-def edit_profile(request):
-    if request.method == 'POST':
-        form = ProfileForm(request.POST, request.FILES)  # Ensure request.FILES is included
-        if form.is_valid():
-            user_profile = form.save(commit=False)
-            user_profile.user = request.user  # Attach the profile to the logged-in user
-            user_profile.save()
-            return redirect('profile')  # Redirect to the profile page after saving
-    else:
-        form = ProfileForm()
-
-    return render(request, 'edit_profile.html', {'form': form})
-
 
 def product_tracker(request, product_id):
     product = get_object_or_404(Stock, id=product_id)
@@ -519,3 +508,27 @@ def download_report_pdf(request):
         response = HttpResponse(pdf, content_type='application/pdf')
         response['Content-Disposition'] = 'attachment; filename="sales_report.pdf"'
         return response
+
+
+@login_required
+def register_employee(request):
+    if request.method == 'POST':
+        form = EmployeeRegisterForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            nationalid = form.cleaned_data.get('nationalid')
+            phone = form.cleaned_data.get('phone')
+            email = form.cleaned_data.get('email')
+
+            EmployeeProfile.objects.create(
+                user=user,
+                nationalid=nationalid,
+                phone=phone,
+                email=email,
+            )
+
+            messages.success(request, f"Employee '{user.username}' was successfully registered.")
+            return redirect('register_employee')
+    else:
+        form = EmployeeRegisterForm()
+    return render(request, 'register_employee.html', {'form': form})
