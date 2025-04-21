@@ -6,8 +6,11 @@ from .models import EmployeeProfile
 @receiver(post_save, sender=User)
 def create_employee_profile(sender, instance, created, **kwargs):
     if created:
-        EmployeeProfile.objects.create(user=instance)
+
+        EmployeeProfile.objects.get_or_create(user=instance)
 
 @receiver(post_save, sender=User)
 def save_employee_profile(sender, instance, **kwargs):
-    instance.employeeprofile.save()
+
+    if hasattr(instance, 'employeeprofile'):
+        instance.employeeprofile.save()

@@ -6,7 +6,7 @@ from .views import weekly_sales_data
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-
+    path('admin_dashboard/', views.admin_dashboard, name='admin_dashboard'),
     path('', views.index, name='index'),
     path('register/', views.register, name='register'),
     path('login/', views.login, name='login'),
@@ -32,10 +32,13 @@ urlpatterns = [
     path('saleslist/', views.saleslist, name='saleslist'),
     path('api/weekly-sales-data/', views.weekly_sales_data, name='weekly_sales_data'),
     path('api/low-stock-alerts/', views.low_stock_alert, name='low_stock_alert'),
-    path('edit_profile/', views.edit_profile, name='edit_profile'),
     path('product_tracker/<int:product_id>/', views.product_tracker, name='product_tracker'),
     path('generate_report/', views.generate_report, name='generate_report'),
     path('download_report_pdf/', views.download_report_pdf, name='download_report_pdf'),
+    path('register_employee/', views.register_employee, name='register_employee'),
+    path('employee_list/', views.employee_list, name='employee_list'),
+    path('edit_employee/<int:user_id>/', views.edit_employee, name='edit_employee'),
+
 
 
 

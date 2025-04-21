@@ -58,9 +58,18 @@ class Sale(models.Model):
 class EmployeeProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     nationalid = models.CharField(max_length=20, blank=True, null=True)
-    email = models.EmailField()
-    phone = models.CharField(max_length=50)
-    password = models. CharField(max_length=100)
+    email = models.EmailField(default='temp@example.com')  # temp default
+    phone = models.CharField(max_length=50, default='0000000000')
+    password = models.CharField(max_length=100, default='password123')
 
     def __str__(self):
         return self.user.username
+
+
+class ActivityLog(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    action = models.CharField(max_length=255)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.action} @ {self.timestamp}"

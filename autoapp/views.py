@@ -1,5 +1,5 @@
 from django.shortcuts import render,redirect,get_object_or_404
-from autoapp.models import Stock,Supplier,Sale,EmployeeProfile
+from autoapp.models import Stock,Supplier,Sale,EmployeeProfile,ActivityLog
 from autoapp.forms import StockForm,SupplierForm,EmployeeRegisterForm
 from django.db.models import Sum,Q,F,ExpressionWrapper,DecimalField
 from django.contrib import messages
@@ -13,32 +13,105 @@ from weasyprint import HTML
 from calendar import monthrange
 from django.core.paginator import Paginator
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import user_passes_test
+from django.contrib.auth import authenticate, login as auth_login
+from django.contrib.auth.models import User
+
 
 
 
 # Create your views here.
+def is_admin(user):
+    return user.is_superuser
 
-def index(request):
+def login(request):
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+
+        user = authenticate(request, username=username, password=password)
+
+        if user is not None:
+            # ✅ prevent crash when user has no employeeprofile
+            if not user.is_superuser and not hasattr(user, 'employeeprofile'):
+                messages.error(request, 'You do not have an employee profile assigned. Please contact admin.')
+                return redirect('login')  # or render login again
+
+            auth_login(request, user)
+            return redirect('index')
+
+        else:
+            messages.error(request, 'Invalid username or password.')
+
+    return render(request, 'login.html')
+
+@user_passes_test(is_admin)
+def admin_dashboard(request):
     today = now().date()
-    week_start = today - timedelta(days=today.weekday())  # Monday of this week
-    week_end = week_start + timedelta(days=6)  # Sunday of this week
 
-    # Get total stock
+    # Weekly Range (Monday to Sunday)
+    week_start = today - timedelta(days=today.weekday())
+    week_end = week_start + timedelta(days=6)
+
+    # Monthly Range (1st to today's date)
+    month_start = today.replace(day=1)
+    month_end = today  # You can also go until end of the month if needed
+
+    # Total stock
     total_stock = sum(stock.quantity for stock in Stock.objects.all())
 
-    # Get weekly sales
+    # Weekly sales
     weekly_sales = Sale.objects.filter(datesold__range=[week_start, week_end])
     weekly_revenue = sum(sale.total_sale for sale in weekly_sales)
     weekly_profit = sum(sale.profit for sale in weekly_sales)
 
+    # Monthly sales
+    monthly_sales = Sale.objects.filter(datesold__range=[month_start, month_end])
+    monthly_revenue = sum(sale.total_sale for sale in monthly_sales)
+    monthly_profit = sum(sale.profit for sale in monthly_sales)
+
     context = {
         "total_stock": total_stock,
+
+        # Weekly Data
         "weekly_revenue": weekly_revenue,
         "weekly_profit": weekly_profit,
         "week_start": week_start,
         "week_end": week_end,
+
+        # Monthly Data
+        "monthly_revenue": monthly_revenue,
+        "monthly_profit": monthly_profit,
+        "month_start": month_start,
+        "month_end": month_end,
     }
+
+    return render(request, "admin_dashboard.html", context)
+
+
+
+@login_required
+def index(request):
+    user = request.user
+    today = now().date()
+
+    profile = None
+    if not user.is_superuser and hasattr(user, 'employeeprofile'):
+        profile = user.employeeprofile
+
+    activity_log = ActivityLog.objects.all().order_by('-timestamp')[:10] if user.is_superuser \
+                   else ActivityLog.objects.filter(user=user).order_by('-timestamp')[:10]
+
+    context = {
+        "user": user,
+        "profile": profile,
+        "today": today,
+        "activity_log": activity_log,
+    }
+
     return render(request, "index.html", context)
+
+
 
 def register(request):
     return render(request, 'register.html')
@@ -123,9 +196,6 @@ def charts(request):
 
 def forgot(request):
     return render(request, 'forgot.html')
-
-def login(request):
-    return render(request, 'login.html')
 
 
 
@@ -515,20 +585,51 @@ def register_employee(request):
     if request.method == 'POST':
         form = EmployeeRegisterForm(request.POST)
         if form.is_valid():
-            user = form.save()
-            nationalid = form.cleaned_data.get('nationalid')
-            phone = form.cleaned_data.get('phone')
-            email = form.cleaned_data.get('email')
+            user = form.save()  # Saves User model fields
+
+            # Save related EmployeeProfile fields
+            phone = form.cleaned_data['phone']
+            nationalid = form.cleaned_data['nationalid']
 
             EmployeeProfile.objects.create(
                 user=user,
-                nationalid=nationalid,
                 phone=phone,
-                email=email,
+                nationalid=nationalid,
+                email=user.email  # from User
             )
 
             messages.success(request, f"Employee '{user.username}' was successfully registered.")
             return redirect('register_employee')
+        else:
+            messages.error(request, "There was an error. Please check the form.")
     else:
         form = EmployeeRegisterForm()
+
     return render(request, 'register_employee.html', {'form': form})
+
+@user_passes_test(is_admin)
+def employee_list(request):
+    employees = EmployeeProfile.objects.all()
+    return render(request, 'employee_list.html', {'employees': employees})
+
+@login_required
+def edit_employee(request, user_id):
+    user = get_object_or_404(User, id=user_id)
+    employee = get_object_or_404(EmployeeProfile, user=user)
+
+    if request.method == 'POST':
+        employee.email = request.POST.get('email')
+        employee.phone = request.POST.get('phone')
+        employee.nationalid = request.POST.get('nationalid')
+        employee.password = request.POST.get('password')  # or set new password properly
+        employee.save()
+
+        user.username = request.POST.get('username')
+        user.save()
+
+        return redirect('employee_list')
+
+    return render(request, 'edit_employee.html', {
+        'employee': employee,
+        'user': user,
+    })
