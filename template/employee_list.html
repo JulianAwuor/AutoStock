@@ -11,7 +11,7 @@
 
     {% load static %}
 
-    <title>Autostock - Update Supplier</title>
+    <title>Autostock - Registered Employees</title>
 
     <!-- Custom fonts for this template-->
     <link href="{% static 'vendor/fontawesome-free/css/all.min.css' %}" rel="stylesheet" type="text/css">
@@ -253,6 +253,11 @@
             <a href="{% url 'edit_employee' employee.user.id %}">Edit</a>
 
 
+            <a href="{% url 'delete_employee' employee.user.id %}"
+               onclick="return confirm('Are you sure you want to delete {{ employee.user.username }}?');"
+               style="color:red;">
+               Delete
+            </a>
 
 
             <!-- Optional delete logic -->

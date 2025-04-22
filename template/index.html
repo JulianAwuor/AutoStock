@@ -100,6 +100,8 @@
                         <a class="collapse-item" href="{% url 'addsale' %}">Add Sales</a>
                         <a class="collapse-item" href="{% url 'saleslist' %}">Sales List</a>
                         <a class="collapse-item" href="{% url 'salesummary' %}">Sales Summary</a>
+                        <a class="collapse-item" href="{% url 'generate_report' %}">Generate Report</a>
+
 
                     </div>
                 </div>
@@ -123,9 +125,8 @@
                 <div id="collapsePages" class="collapse" aria-labelledby="headingPages" data-parent="#accordionSidebar">
                     <div class="bg-white py-2 collapse-inner rounded">
                         <h6 class="collapse-header">Login Screens:</h6>
-                        <a class="collapse-item" href="login.html">Login</a>
-                        <a class="collapse-item" href="register.html">Register</a>
-                        <a class="collapse-item" href="forgot.html">Forgot Password</a>
+                        <a class="collapse-item" href="{% url 'register_employee' %}">Register Employee</a>
+                        <a class="collapse-item" href="{% url 'employee_list' %}">Registered Employees</a>
                         <div class="collapse-divider"></div>
 
                     </div>
@@ -255,8 +256,8 @@
                                 </a>
                                 <div class="dropdown-divider"></div>
                                 <a class="dropdown-item" href="#" data-toggle="modal" data-target="#logoutModal">
-                                    <i class="fas fa-sign-out-alt fa-sm fa-fw mr-2 text-gray-400"></i>
-                                    Logout
+                                <i class="fas fa-sign-out-alt fa-sm fa-fw mr-2 text-gray-400"></i>
+                                 Logout
                                 </a>
                             </div>
                         </li>
@@ -270,16 +271,16 @@
                 <div class="container-fluid">
 
     <!-- Page Heading -->
-   {% if profile %}
-  <p>Welcome {{ profile.role }} from {{ profile.department }}</p>
+  {% if request.user.is_authenticated %}
+  {% if request.user.profile.role == 'boss' %}
+    <p>Welcome Admin! You have full system access.</p>
+  {% else %}
+    <p>Welcome {{ request.user.username }}</p>
+  {% endif %}
 {% else %}
-  <p>Welcome Admin! You have full system access.</p>
+  <p>Welcome, guest! Please log in.</p>
 {% endif %}
 
-<!-- Admin Dashboard Button (Optional) -->
-{% if user.is_superuser %}
-    <a href="{% url 'admin:index' %}" class="btn btn-sm btn-primary mb-4">Go to Admin Dashboard</a>
-{% endif %}
 
 <!-- Activity Log Section -->
 <div class="card shadow mb-4">
@@ -288,14 +289,15 @@
     </div>
     <div class="card-body">
         <ul class="list-group">
-            <li class="list-group-item">🕒 Stock item "Engine Oil" added - 2 hours ago</li>
-            <li class="list-group-item">🧾 Sale made: Invoice #1234 - 3 hours ago</li>
-            <li class="list-group-item">📦 Supplier "AutoSpare Ltd" registered - Yesterday</li>
-            <li class="list-group-item">📈 Sales summary exported - 2 days ago</li>
+            {% for activity in activity_log %}
+                <li class="list-group-item">🕒 {{ activity.action }} - {{ activity.timestamp|timesince }} ago</li>
+            {% empty %}
+                <li class="list-group-item">No recent activity</li>
+            {% endfor %}
         </ul>
     </div>
 </div>
-</div>
+                </div>
                 <!-- /.container-fluid -->
 
 
@@ -324,24 +326,23 @@
     </a>
 
     <!-- Logout Modal-->
-    <div class="modal fade" id="logoutModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel"
-        aria-hidden="true">
-        <div class="modal-dialog" role="document">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="exampleModalLabel">Ready to Leave?</h5>
-                    <button class="close" type="button" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">×</span>
-                    </button>
-                </div>
-                <div class="modal-body">Select "Logout" below if you are ready to end your current session.</div>
-                <div class="modal-footer">
-                    <button class="btn btn-secondary" type="button" data-dismiss="modal">Cancel</button>
-                    <a class="btn btn-primary" href="login.html">Logout</a>
-                </div>
+    <div class="modal fade" id="logoutModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="exampleModalLabel">Ready to Leave?</h5>
+                <button class="close" type="button" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">×</span>
+                </button>
+            </div>
+            <div class="modal-body">Select "Logout" below if you are ready to end your current session.</div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" data-dismiss="modal">Cancel</button>
+                <a class="btn btn-primary" href="{% url 'logout' %}">Logout</a>
             </div>
         </div>
     </div>
+</div>
 
     <!-- Bootstrap core JavaScript-->
     <script src="{% static 'vendor/jquery/jquery.min.js' %}"></script>

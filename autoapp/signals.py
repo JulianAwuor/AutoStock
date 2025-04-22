@@ -14,3 +14,4 @@ def save_employee_profile(sender, instance, **kwargs):
 
     if hasattr(instance, 'employeeprofile'):
         instance.employeeprofile.save()
+

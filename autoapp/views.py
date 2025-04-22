@@ -16,6 +16,18 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth import authenticate, login as auth_login
 from django.contrib.auth.models import User
+from django.http import HttpResponseForbidden
+
+
+
+def boss_required(function):
+    """Ensure only the boss (or superuser) can access a view."""
+    def wrapper(request, *args, **kwargs):
+
+        if not request.user.is_superuser and request.user.employeeprofile.role != 'boss':
+            return HttpResponseForbidden("You do not have permission to access this page.")
+        return function(request, *args, **kwargs)
+    return wrapper
 
 
 
@@ -45,7 +57,7 @@ def login(request):
 
     return render(request, 'login.html')
 
-@user_passes_test(is_admin)
+@boss_required
 def admin_dashboard(request):
     today = now().date()
 
@@ -119,33 +131,47 @@ def register(request):
 def blank(request):
     return render(request, 'blank.html')
 
+@login_required
 def newstock(request):
     if request.method == 'POST':
         name = request.POST['name']
         quantity = int(request.POST['quantity'])
-        price = Decimal(request.POST['price'])  # Convert to Decimal
-        buyingprice = Decimal(request.POST['buyingprice'])  # Convert to Decimal
+        price = Decimal(request.POST['price'])
+        buyingprice = Decimal(request.POST['buyingprice'])
         product = request.POST['product']
         date = request.POST['date']
 
-        # Check if the product already exists
-        stock, created = Stock.objects.get_or_create(product=product, name=name, defaults={
-            'quantity': quantity,
-            'price': price,
-            'buyingprice': buyingprice,
-            'date': date
-        })
+        stock, created = Stock.objects.get_or_create(
+            product=product, name=name,
+            defaults={
+                'quantity': quantity,
+                'price': price,
+                'buyingprice': buyingprice,
+                'date': date
+            }
+        )
 
         if not created:
-            # If the stock already exists, update quantity and price details
             stock.quantity += quantity
             stock.price = price
             stock.buyingprice = buyingprice
             stock.save()
 
+            action_msg = f"Updated stock '{product}' with +{quantity} units"
+        else:
+            action_msg = f"Added new stock '{product}' ({quantity} units)"
+
+        # Save activity log
+        ActivityLog.objects.create(
+            user=request.user,
+            action=action_msg,
+            timestamp=now()
+        )
+
         return redirect('/stocks')
 
     return render(request, 'newstock.html')
+
 
 
 def stocks(request):
@@ -211,6 +237,7 @@ def utilitiesother(request):
 def utilitiescolor(request):
     return render(request, 'utilitiescolor.html')
 
+
 def delete(request,id):
     stocks = Stock.objects.get(id = id)
     stocks.delete()
@@ -255,7 +282,7 @@ def updatesupplier(request, id):
         return render(request, 'editsupplier.html')
 
 
-
+@boss_required
 def totalstock(request):
     total_per_product = Stock.objects.values('product').annotate(total_quantity=Sum('quantity'))
     grand_total = Stock.objects.aggregate(grand_total=Sum('quantity'))['grand_total'] or 0
@@ -263,13 +290,13 @@ def totalstock(request):
     return render(request, 'totalstock.html', {'total_per_product': total_per_product, 'grand_total': grand_total})
 
 
+@login_required
 def addsale(request):
     if request.method == "POST":
         product_id = request.POST.get("product")
         quantitysold = request.POST.get("quantitysold")
         sellingprice = request.POST.get("sellingprice")
 
-        # Validate required fields
         if not product_id or not quantitysold or not sellingprice:
             messages.error(request, "All fields are required!")
             return redirect("addsale")
@@ -281,43 +308,45 @@ def addsale(request):
             messages.error(request, "Invalid input! Please enter valid numbers.")
             return redirect("addsale")
 
-        # Ensure quantity sold is positive
         if quantitysold <= 0:
             messages.error(request, "Quantity sold must be greater than zero.")
             return redirect("addsale")
 
-        # Get the selected product
         product = get_object_or_404(Stock, id=product_id)
 
-        # Ensure selling price is not lower than buying price
         if sellingprice < product.buyingprice:
             messages.error(request, "Selling price cannot be lower than buying price!")
             return redirect("addsale")
 
-        # Check if there is enough stock
         if quantitysold > product.quantity:
             messages.error(request, "Not enough stock available!")
             return redirect("addsale")
 
-        # Deduct sold quantity from stock
         product.quantity -= quantitysold
         product.save()
 
-        # Create a sale record
         Sale.objects.create(
             product=product,
             quantitysold=quantitysold,
             sellingprice=sellingprice
         )
 
-        messages.success(request, "Sale recorded successfully!")
-        return redirect("addsale")  # Redirect to sales list page
+        # Add to activity log
+        action_msg = f"Sold {quantitysold} unit(s) of '{product.product}' at {sellingprice} each"
+        ActivityLog.objects.create(
+            user=request.user,
+            action=action_msg,
+            timestamp=now()
+        )
 
-    # Get all products for dropdown selection
+        messages.success(request, "Sale recorded successfully!")
+        return redirect("addsale")
+
     products = Stock.objects.all()
     return render(request, "addsale.html", {"products": products})
 
 
+@boss_required
 def salesummary(request):
     today = now().date()
 
@@ -363,6 +392,7 @@ def salesummary(request):
 
     return render(request, "salesummary.html", context)
 
+@boss_required
 def saleslist(request):
     query = request.GET.get('q')
     if query:
@@ -381,6 +411,7 @@ def saleslist(request):
         'query': query           # 👉 Optional: if you want to preserve search input in the form
     })
 
+@boss_required
 def weekly_sales_data(request):
     today = now().date()
     week_start = today - timedelta(days=today.weekday())  # Monday
@@ -440,6 +471,7 @@ def product_tracker(request, product_id):
     return render(request, "product_tracker.html", context)
 
 
+@boss_required
 def generate_report(request):
     start_date = request.GET.get('start_date')
     end_date = request.GET.get('end_date')
@@ -509,6 +541,7 @@ def generate_report(request):
     return render(request, 'generate_report.html', context)
 
 
+@boss_required
 def download_report_pdf(request):
     if request.method == 'POST':
         start_date = request.POST.get('start_date')
@@ -581,23 +614,12 @@ def download_report_pdf(request):
 
 
 @login_required
+@boss_required
 def register_employee(request):
     if request.method == 'POST':
         form = EmployeeRegisterForm(request.POST)
         if form.is_valid():
-            user = form.save()  # Saves User model fields
-
-            # Save related EmployeeProfile fields
-            phone = form.cleaned_data['phone']
-            nationalid = form.cleaned_data['nationalid']
-
-            EmployeeProfile.objects.create(
-                user=user,
-                phone=phone,
-                nationalid=nationalid,
-                email=user.email  # from User
-            )
-
+            user = form.save()
             messages.success(request, f"Employee '{user.username}' was successfully registered.")
             return redirect('register_employee')
         else:
@@ -607,12 +629,13 @@ def register_employee(request):
 
     return render(request, 'register_employee.html', {'form': form})
 
-@user_passes_test(is_admin)
+
+@boss_required
 def employee_list(request):
     employees = EmployeeProfile.objects.all()
     return render(request, 'employee_list.html', {'employees': employees})
 
-@login_required
+@boss_required
 def edit_employee(request, user_id):
     user = get_object_or_404(User, id=user_id)
     employee = get_object_or_404(EmployeeProfile, user=user)
@@ -633,3 +656,14 @@ def edit_employee(request, user_id):
         'employee': employee,
         'user': user,
     })
+
+
+def is_admin(user):
+    return user.is_superuser
+
+@boss_required
+def delete_employee(request, user_id):
+    user = get_object_or_404(User, id=user_id)
+    user.delete()
+    messages.success(request, f"Employee '{user.username}' has been deleted.")
+    return redirect('employee_list')

@@ -3,6 +3,8 @@ from django.contrib import admin
 from django.urls import path
 from autoapp import views
 from .views import weekly_sales_data
+from django.contrib.auth import views as auth_views
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -38,7 +40,8 @@ urlpatterns = [
     path('register_employee/', views.register_employee, name='register_employee'),
     path('employee_list/', views.employee_list, name='employee_list'),
     path('edit_employee/<int:user_id>/', views.edit_employee, name='edit_employee'),
-
+    path('delete_employee/<int:user_id>/', views.delete_employee, name='delete_employee'),
+    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
 
 
 

@@ -53,17 +53,24 @@ class Sale(models.Model):
         return Decimal(0)  # If buying price is missing, return 0
 
 
-
-
 class EmployeeProfile(models.Model):
+    ROLE_CHOICES = [
+        ('boss', 'Boss'),
+        ('employee', 'Employee'),
+    ]
+
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     nationalid = models.CharField(max_length=20, blank=True, null=True)
     email = models.EmailField(default='temp@example.com')  # temp default
     phone = models.CharField(max_length=50, default='0000000000')
     password = models.CharField(max_length=100, default='password123')
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='employee')  # added role field
 
     def __str__(self):
         return self.user.username
+
+
+
 
 
 class ActivityLog(models.Model):

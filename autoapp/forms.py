@@ -28,6 +28,15 @@ class EmployeeRegisterForm(UserCreationForm):
     def save(self, commit=True):
         user = super().save(commit=False)
         user.email = self.cleaned_data['email']
+
         if commit:
             user.save()
+
+            # Create or update the EmployeeProfile
+            profile, created = EmployeeProfile.objects.get_or_create(user=user)
+            profile.email = self.cleaned_data['email']
+            profile.phone = self.cleaned_data['phone']
+            profile.nationalid = self.cleaned_data['nationalid']
+            profile.save()
+
         return user
