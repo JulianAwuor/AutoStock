@@ -42,6 +42,9 @@ urlpatterns = [
     path('edit_employee/<int:user_id>/', views.edit_employee, name='edit_employee'),
     path('delete_employee/<int:user_id>/', views.delete_employee, name='delete_employee'),
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),
+    path('receipt/<int:transaction_id>/', views.receipt, name='receipt'),
+    path('download_receipt/<int:transaction_id>/', views.download_receipt, name='download_receipt'),
+
 
 
 

@@ -29,28 +29,48 @@ class Supplier(models.Model):
 
 
 
+class SaleTransaction(models.Model):
+    employee = models.ForeignKey(User, on_delete=models.CASCADE)
+    date = models.DateTimeField(auto_now_add=True)
+    discount = models.DecimalField(max_digits=8, decimal_places=2, default=0.00)
+    tax = models.DecimalField(max_digits=8, decimal_places=2, default=0.00)
+
+    def __str__(self):
+        return f"Transaction #{self.id} by {self.employee.username} on {self.date.strftime('%Y-%m-%d')}"
+
+    @property
+    def total_amount(self):
+        total = sum(sale.total_sale for sale in self.sales.all())
+        return (total + self.tax) - self.discount
+
+
+
+
 class Sale(models.Model):
-    product = models.ForeignKey(
-        'Stock', on_delete=models.CASCADE, related_name="sales"
+    transaction = models.ForeignKey(
+        SaleTransaction,
+        on_delete=models.CASCADE,
+        related_name='sales',
+        null=True,   # allow NULL in database
+        blank=True   # allow blank in forms/admin
     )
+    product = models.ForeignKey('Stock', on_delete=models.CASCADE, related_name='sales')
     quantitysold = models.PositiveIntegerField()
     sellingprice = models.DecimalField(max_digits=12, decimal_places=2)
-    datesold = models.DateField(auto_now_add=True)  # Automatically set on sale
+    datesold = models.DateField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.product.product} - {self.quantitysold} sold"
 
     @property
     def total_sale(self):
-        """Calculate total revenue from this sale."""
         return self.quantitysold * self.sellingprice
 
     @property
     def profit(self):
-        """Calculate profit for this sale."""
         if hasattr(self.product, 'buyingprice'):
             return self.quantitysold * (self.sellingprice - self.product.buyingprice)
-        return Decimal(0)  # If buying price is missing, return 0
+        return Decimal(0)
 
 
 class EmployeeProfile(models.Model):
@@ -80,3 +100,8 @@ class ActivityLog(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.action} @ {self.timestamp}"
+
+
+
+
+

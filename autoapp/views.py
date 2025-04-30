@@ -1,5 +1,5 @@
 from django.shortcuts import render,redirect,get_object_or_404
-from autoapp.models import Stock,Supplier,Sale,EmployeeProfile,ActivityLog
+from autoapp.models import Stock,Supplier,Sale,EmployeeProfile,ActivityLog,SaleTransaction
 from autoapp.forms import StockForm,SupplierForm,EmployeeRegisterForm
 from django.db.models import Sum,Q,F,ExpressionWrapper,DecimalField
 from django.contrib import messages
@@ -17,6 +17,10 @@ from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth import authenticate, login as auth_login
 from django.contrib.auth.models import User
 from django.http import HttpResponseForbidden
+from django.db import transaction
+import tempfile
+from django.template.loader import get_template
+import weasyprint
 
 
 
@@ -111,8 +115,8 @@ def index(request):
     if not user.is_superuser and hasattr(user, 'employeeprofile'):
         profile = user.employeeprofile
 
-    activity_log = ActivityLog.objects.all().order_by('-timestamp')[:10] if user.is_superuser \
-                   else ActivityLog.objects.filter(user=user).order_by('-timestamp')[:10]
+    activity_log = ActivityLog.objects.all().order_by('-timestamp')[:10]
+
 
     context = {
         "user": user,
@@ -293,58 +297,74 @@ def totalstock(request):
 @login_required
 def addsale(request):
     if request.method == "POST":
-        product_id = request.POST.get("product")
-        quantitysold = request.POST.get("quantitysold")
-        sellingprice = request.POST.get("sellingprice")
+        product_ids = request.POST.getlist("product")
+        quantities_sold = request.POST.getlist("quantitysold")
+        selling_prices = request.POST.getlist("sellingprice")
 
-        if not product_id or not quantitysold or not sellingprice:
+        if not product_ids or not quantities_sold or not selling_prices:
             messages.error(request, "All fields are required!")
             return redirect("addsale")
 
-        try:
-            quantitysold = int(quantitysold)
-            sellingprice = Decimal(sellingprice)
-        except ValueError:
-            messages.error(request, "Invalid input! Please enter valid numbers.")
-            return redirect("addsale")
+        with transaction.atomic():
+            saletransaction = SaleTransaction.objects.create(employee=request.user)
 
-        if quantitysold <= 0:
-            messages.error(request, "Quantity sold must be greater than zero.")
-            return redirect("addsale")
+            sales = []  # Collect sales here to calculate subtotal later
 
-        product = get_object_or_404(Stock, id=product_id)
+            for product_id, quantitysold, sellingprice in zip(product_ids, quantities_sold, selling_prices):
+                try:
+                    quantitysold = int(quantitysold)
+                    sellingprice = Decimal(sellingprice)
+                except ValueError:
+                    messages.error(request, "Invalid input! Please enter valid numbers.")
+                    return redirect("addsale")
 
-        if sellingprice < product.buyingprice:
-            messages.error(request, "Selling price cannot be lower than buying price!")
-            return redirect("addsale")
+                if quantitysold <= 0:
+                    messages.error(request, "Quantity sold must be greater than zero.")
+                    return redirect("addsale")
 
-        if quantitysold > product.quantity:
-            messages.error(request, "Not enough stock available!")
-            return redirect("addsale")
+                product = get_object_or_404(Stock, id=product_id)
 
-        product.quantity -= quantitysold
-        product.save()
+                if sellingprice < product.buyingprice:
+                    messages.error(request, f"Selling price for {product.product} cannot be lower than buying price!")
+                    return redirect("addsale")
 
-        Sale.objects.create(
-            product=product,
-            quantitysold=quantitysold,
-            sellingprice=sellingprice
-        )
+                if quantitysold > product.quantity:
+                    messages.error(request, f"Not enough stock available for {product.product}!")
+                    return redirect("addsale")
 
-        # Add to activity log
-        action_msg = f"Sold {quantitysold} unit(s) of '{product.product}' at {sellingprice} each"
-        ActivityLog.objects.create(
-            user=request.user,
-            action=action_msg,
-            timestamp=now()
-        )
+                # Update stock quantity
+                product.quantity -= quantitysold
+                product.save()
 
-        messages.success(request, "Sale recorded successfully!")
-        return redirect("addsale")
+                # Create the sale and collect it
+                sale = Sale.objects.create(
+                    product=product,
+                    quantitysold=quantitysold,
+                    sellingprice=sellingprice,
+                    transaction=saletransaction
+                )
+                sales.append(sale)
+
+            # 👉 Now calculate subtotal and tax
+            subtotal = sum(sale.total_sale for sale in sales)
+            tax_amount = subtotal * Decimal('0.16')  # 16% tax
+
+            # Update the transaction's tax
+            saletransaction.tax = tax_amount
+            saletransaction.save()
+
+            # Log the action
+            ActivityLog.objects.create(
+                user=request.user,
+                action=f"Sold {len(product_ids)} item(s) in Transaction #{saletransaction.id}",
+                timestamp=now()
+            )
+
+            messages.success(request, "Sale(s) recorded successfully!")
+            return redirect("receipt", transaction_id=saletransaction.id)
 
     products = Stock.objects.all()
     return render(request, "addsale.html", {"products": products})
-
 
 @boss_required
 def salesummary(request):
@@ -512,6 +532,7 @@ def generate_report(request):
     monthly_sales = sales.filter(datesold__gte=selected_start_date, datesold__lte=selected_end_date)
     monthly_units = sum(s.quantitysold for s in monthly_sales)
     monthly_amount = sum(s.total_sale for s in monthly_sales)
+    monthly_profit = sum(s.profit for s in monthly_sales)
 
     # Pie Chart Data
     chart_data = defaultdict(int)
@@ -529,6 +550,7 @@ def generate_report(request):
         'weekly_total_amount': weekly_amount,
         'monthly_total_quantity': monthly_units,
         'monthly_total_amount': monthly_amount,
+        'monthly_total_profit': monthly_profit,
 
         'chart_data': {
             'keys': list(chart_data.keys()),
@@ -599,6 +621,7 @@ def download_report_pdf(request):
             'weekly_total_amount': sum(s.total_sale for s in weekly_sales),
             'monthly_total_quantity': sum(s.quantitysold for s in monthly_sales),
             'monthly_total_amount': sum(s.total_sale for s in monthly_sales),
+            'monthly_total_profit': sum(s.profit for s in monthly_sales),
             'chart_image': chart_image,
             'start_date': start_date,
             'end_date': end_date,
@@ -667,3 +690,54 @@ def delete_employee(request, user_id):
     user.delete()
     messages.success(request, f"Employee '{user.username}' has been deleted.")
     return redirect('employee_list')
+
+
+def receipt(request, transaction_id):
+    transaction = get_object_or_404(SaleTransaction, id=transaction_id)
+    sales = transaction.sales.all()
+
+    subtotal = sum(sale.total_sale for sale in sales)  # Calculate manually
+    tax = transaction.tax
+    discount = transaction.discount
+    total = transaction.total_amount
+
+    employee = transaction.employee
+
+    return render(request, "receipt.html", {
+        "transaction": transaction,
+        "sales": sales,
+        "subtotal": subtotal,
+        "tax": tax,
+        "discount": discount,
+        "total": total,
+        "employee": employee,
+    })
+
+
+def download_receipt(request, transaction_id):
+    transaction = get_object_or_404(SaleTransaction, id=transaction_id)
+    sales = transaction.sales.all()
+
+    subtotal = sum(sale.total_sale for sale in sales)
+    tax = transaction.tax
+    discount = transaction.discount
+    total = transaction.total_amount
+    employee = transaction.employee
+
+    html_template = get_template("receipt.html")
+    html = html_template.render({
+        "transaction": transaction,
+        "sales": sales,
+        "subtotal": subtotal,
+        "tax": tax,
+        "discount": discount,
+        "total": total,
+        "employee": employee,
+    })
+
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = f'filename="receipt_{transaction_id}.pdf"'
+
+    weasyprint.HTML(string=html).write_pdf(response)
+
+    return response

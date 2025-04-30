@@ -242,7 +242,7 @@
                 <!-- Begin Page Content -->
 
 
-               <h2>Add Sale</h2>
+              <h2>Add Sale</h2>
 
 {% if messages %}
     {% for message in messages %}
@@ -253,25 +253,53 @@
 <form method="POST">
     {% csrf_token %}
 
-    <label for="product">Select Product:</label>
-    <select name="product" required>
-        <option value="">-- Select Product --</option>
-        {% for product in products %}
-            <option value="{{ product.id }}">{{ product.product }} ({{ product.quantity }} in stock)</option>
-        {% endfor %}
-    </select>
+    <div id="products-container">
+        <!-- Start of product block -->
+        <div class="product-block">
+            <label for="product">Select Product:</label>
+            <select name="product" required>
+                <option value="">-- Select Product --</option>
+                {% for product in products %}
+                    <option value="{{ product.id }}">{{ product.product }} ({{ product.quantity }} in stock)</option>
+                {% endfor %}
+            </select>
 
-    <label for="quantitysold">Quantity Sold:</label>
-    <input type="number" name="quantitysold" min="1" required>
+            <label for="quantitysold">Quantity Sold:</label>
+            <input type="number" name="quantitysold" min="1" required>
 
-    <label for="sellingprice">Selling Price Per Unit:</label>
-    <input type="number" name="sellingprice" step="0.01" required>
+            <label for="sellingprice">Selling Price Per Unit:</label>
+            <input type="number" name="sellingprice" step="0.01" required>
 
+            <hr>
+        </div>
+        <!-- End of product block -->
+    </div>
+
+    <!-- Button to add more products -->
+    <button type="button" id="add-product-btn" class="btn btn-secondary">+ Add Another Product</button>
+
+    <br><br>
     <button type="submit" class="btn btn-success">Record Sale</button>
-
 </form>
 
+<script>
+// JavaScript to duplicate product input fields
+document.getElementById('add-product-btn').addEventListener('click', function() {
+    const container = document.getElementById('products-container');
+    const productBlocks = container.getElementsByClassName('product-block');
+    const lastBlock = productBlocks[productBlocks.length - 1];
 
+    // Clone the last product block
+    const newBlock = lastBlock.cloneNode(true);
+
+    // Reset the values in the cloned block
+    newBlock.querySelector('select[name="product"]').selectedIndex = 0;
+    newBlock.querySelector('input[name="quantitysold"]').value = '';
+    newBlock.querySelector('input[name="sellingprice"]').value = '';
+
+    container.appendChild(newBlock);
+});
+</script>
 
 
 
