@@ -38,7 +38,7 @@
             <!-- Sidebar - Brand -->
             <a class="sidebar-brand d-flex align-items-center justify-content-center" href="{% url 'index' %}">
                 <div class="sidebar-brand-icon rotate-n-15">
-                    <i class="fas fa-laugh-wink"></i>
+                    <i class="fas fa-chart-line"></i>
                 </div>
                 <div class="sidebar-brand-text mx-3">AutoStock <sup></sup></div>
             </a>
@@ -204,10 +204,15 @@
                         <!-- Nav Item - User Information -->
                         <li class="nav-item dropdown no-arrow">
                             <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
-                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                <span class="mr-2 d-none d-lg-inline text-gray-600 small">AutoStock</span>
-                                <img class="img-profile rounded-circle"
-                                    src="{% static 'img/undraw_profile.svg' %}">
+                                  data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                  <span class="mr-2 d-none d-lg-inline text-gray-600 small">{{ user.username }}</span>
+
+                                {% if user.is_authenticated %}
+                                     <div class="img-profile rounded-circle bg-primary text-white d-flex justify-content-center align-items-center"
+                                          style="width: 40px; height: 40px; font-size: 14px;">
+                                          {{ user.username|slice:":2"|upper }}
+                                     </div>
+                                {% endif %}
                             </a>
                             <!-- Dropdown - User Information -->
                             <div class="dropdown-menu dropdown-menu-right shadow animated--grow-in"
@@ -240,41 +245,69 @@
                 <!-- Begin Page Content -->
 
 
-                 <table class="table">
-                  <tr>
-                      <th>Supplier Name</th>
-                      <th>Email</th>
-                      <th>Contact</th>
-                      <th>Product</th>
-                      <th>Action</th>
-                  </tr>
+                <table class="table">
+    <tr>
+        <th>Supplier Name</th>
+        <th>Email</th>
+        <th>Contact</th>
+        <th>Product</th>
+        <th>Action</th>
+    </tr>
 
-                    {% for y in supplier %}
+    {% for y in supplier %}
+        <tr>
+            <td>{{ y.fullname }}</td>
+            <td>{{ y.email }}</td>
+            <td>{{ y.contact }}</td>
+            <td>{{ y.productname }}</td>
+            <td>
+                <a href="/editsupplier/{{ y.id }}" class="btn btn-primary">EDIT</a>
+                <a href="/deletesupplier/{{ y.id }}" class="btn btn-danger">DELETE</a>
+            </td>
+        </tr>
+    {% empty %}
+        <tr>
+            <td colspan="5" class="text-center text-danger">No suppliers found.</td>
+        </tr>
+    {% endfor %}
+</table>
 
-                        <tr>
-                            <td>{{ y.fullname }}</td>
-                            <td>{{ y.email }}</td>
-                            <td>{{ y.contact }}</td>
-                            <td>{{ y.productname }}</td>
+<!-- Pagination Controls -->
+<div class="d-flex justify-content-center mt-4">
+    <nav aria-label="Page navigation">
+        <ul class="pagination">
+            {% if supplier.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?search={{ search_query }}&page={{ supplier.previous_page_number }}">Previous</a>
+                </li>
+            {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">Previous</span>
+                </li>
+            {% endif %}
 
-                        <td>
-                            <a href="/editsupplier/{{ y.id }}" class="btn btn-primary">EDIT</a>
-                            <a href="/deletesupplier/{{ y.id }}" class="btn btn-danger">DELETE</a>
-                        </td>
+            {% for num in supplier.paginator.page_range %}
+                {% if supplier.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                {% elif num > supplier.number|add:'-3' and num < supplier.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?search={{ search_query }}&page={{ num }}">{{ num }}</a>
+                    </li>
+                {% endif %}
+            {% endfor %}
 
-                        </tr>
-
-                    {% endfor %}
-
-
-
-
-
-
-
-
-
-                 </table>
+            {% if supplier.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?search={{ search_query }}&page={{ supplier.next_page_number }}">Next</a>
+                </li>
+            {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">Next</span>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+</div>
                 <!-- /.container-fluid -->
 
             </div>

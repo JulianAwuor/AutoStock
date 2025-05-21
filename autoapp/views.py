@@ -179,7 +179,7 @@ def newstock(request):
 
 
 def stocks(request):
-    query = request.GET.get('q')  # Get search input from URL
+    query = request.GET.get('q', '').strip()  # safely get and strip query param
     if query:
         allstocks = Stock.objects.filter(
             Q(product__icontains=query) | Q(name__icontains=query)
@@ -187,11 +187,15 @@ def stocks(request):
     else:
         allstocks = Stock.objects.all()
 
+    print("Total stocks found:", allstocks.count())  # Debug print
+
     paginator = Paginator(allstocks, 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
-    # 👇 Pass `query` to template
+    print("Current page number:", page_obj.number)  # Debug print
+    print("Stocks on current page:", list(page_obj.object_list.values('id', 'name', 'product')))  # Debug print
+
     return render(request, 'stocks.html', {'stock': page_obj, 'query': query})
 
 def newsupplier(request):
@@ -209,17 +213,24 @@ def newsupplier(request):
         return render(request, 'newsupplier.html')
 
 def existingsupplier(request):
-    search_query = request.GET.get('search', '')  # Get the search query from the URL parameters
+    search_query = request.GET.get('search', '')  # Get the search query from the URL
     if search_query:
-        # Filter suppliers based on the search query for their name, product, or contact
         allsuppliers = Supplier.objects.filter(
-            fullname__icontains=search_query) | Supplier.objects.filter(
-            productname__icontains=search_query) | Supplier.objects.filter(
-            contact__icontains=search_query)
+            Q(fullname__icontains=search_query) |
+            Q(productname__icontains=search_query) |
+            Q(contact__icontains=search_query)
+        )
     else:
         allsuppliers = Supplier.objects.all()
 
-    return render(request, 'existingsupplier.html', {'supplier': allsuppliers, 'search_query': search_query})
+    paginator = Paginator(allsuppliers, 10)  # Show 10 suppliers per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    return render(request, 'existingsupplier.html', {
+        'supplier': page_obj,
+        'search_query': search_query
+    })
 
 def charts(request):
     return render(request, 'charts.html')
@@ -696,40 +707,79 @@ def receipt(request, transaction_id):
     transaction = get_object_or_404(SaleTransaction, id=transaction_id)
     sales = transaction.sales.all()
 
-    subtotal = sum(sale.total_sale for sale in sales)  # Calculate manually
-    tax = transaction.tax
-    discount = transaction.discount
-    total = transaction.total_amount
+    sales_with_tax = []
+    tax_rate = Decimal('0.16')  # 16%
+
+    subtotal = Decimal('0.00')
+    total_tax = Decimal('0.00')
+
+    for sale in sales:
+        total_sale = Decimal(sale.total_sale)
+        # Calculate tax included in the total_sale (price includes tax)
+        tax_amount = total_sale - (total_sale / (1 + tax_rate))
+
+        sales_with_tax.append({
+            "product": sale.product,
+            "quantitysold": sale.quantitysold,
+            "sellingprice": sale.sellingprice,
+            "total_sale": total_sale,
+            "tax_amount": tax_amount,
+        })
+
+        subtotal += total_sale
+        total_tax += tax_amount
+
+    discount = Decimal(transaction.discount)
+    total = subtotal - discount
 
     employee = transaction.employee
 
     return render(request, "receipt.html", {
         "transaction": transaction,
-        "sales": sales,
+        "sales": sales_with_tax,
         "subtotal": subtotal,
-        "tax": tax,
+        "tax": total_tax,
         "discount": discount,
         "total": total,
         "employee": employee,
     })
-
-
 def download_receipt(request, transaction_id):
     transaction = get_object_or_404(SaleTransaction, id=transaction_id)
     sales = transaction.sales.all()
 
-    subtotal = sum(sale.total_sale for sale in sales)
-    tax = transaction.tax
-    discount = transaction.discount
-    total = transaction.total_amount
+    tax_rate = Decimal('0.16')
+    subtotal = Decimal('0.00')
+    total_tax = Decimal('0.00')
+
+    sales_with_tax = []
+
+    for sale in sales:
+        total_sale = Decimal(sale.total_sale)
+        tax_amount = total_sale - (total_sale / (1 + tax_rate))
+
+        # Append data including tax for template
+        sales_with_tax.append({
+            "product": sale.product,
+            "quantitysold": sale.quantitysold,
+            "sellingprice": sale.sellingprice,
+            "total_sale": total_sale,
+            "tax_amount": tax_amount,
+        })
+
+        subtotal += total_sale
+        total_tax += tax_amount
+
+    discount = Decimal(transaction.discount)
+    total = subtotal - discount
+
     employee = transaction.employee
 
     html_template = get_template("receipt.html")
     html = html_template.render({
         "transaction": transaction,
-        "sales": sales,
+        "sales": sales_with_tax,
         "subtotal": subtotal,
-        "tax": tax,
+        "tax": total_tax,
         "discount": discount,
         "total": total,
         "employee": employee,
@@ -737,7 +787,6 @@ def download_receipt(request, transaction_id):
 
     response = HttpResponse(content_type="application/pdf")
     response["Content-Disposition"] = f'filename="receipt_{transaction_id}.pdf"'
-
     weasyprint.HTML(string=html).write_pdf(response)
 
     return response

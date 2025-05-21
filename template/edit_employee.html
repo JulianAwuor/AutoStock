@@ -35,7 +35,7 @@
             <!-- Sidebar - Brand -->
             <a class="sidebar-brand d-flex align-items-center justify-content-center" href="{% url 'index' %}">
                 <div class="sidebar-brand-icon rotate-n-15">
-                    <i class="fas fa-laugh-wink"></i>
+                    <i class="fas fa-chart-line"></i>
                 </div>
                 <div class="sidebar-brand-text mx-3">AutoStock <sup></sup></div>
             </a>
@@ -113,9 +113,8 @@
                 <div id="collapsePages" class="collapse" aria-labelledby="headingPages" data-parent="#accordionSidebar">
                     <div class="bg-white py-2 collapse-inner rounded">
                         <h6 class="collapse-header">Login Screens:</h6>
-                        <a class="collapse-item" href="login.html">Login</a>
-                        <a class="collapse-item" href="register.html">Register</a>
-                        <a class="collapse-item" href="forgot.html">Forgot Password</a>
+                        <a class="collapse-item" href="{% url 'register_employee' %}">Register Employee</a>
+                        <a class="collapse-item" href="{% url 'employee_list' %}">Registered Employees</a>
                         <div class="collapse-divider"></div>
 
                     </div>
@@ -199,10 +198,15 @@
                         <!-- Nav Item - User Information -->
                         <li class="nav-item dropdown no-arrow">
                             <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
-                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                <span class="mr-2 d-none d-lg-inline text-gray-600 small">AutoStock</span>
-                                <img class="img-profile rounded-circle"
-                                    src="{% static 'img/undraw_profile.svg' %}">
+                                  data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                 <span class="mr-2 d-none d-lg-inline text-gray-600 small">{{ user.username }}</span>
+
+                                {% if user.is_authenticated %}
+                                      <div class="img-profile rounded-circle bg-primary text-white d-flex justify-content-center align-items-center"
+                                           style="width: 40px; height: 40px; font-size: 14px;">
+                                           {{ user.username|slice:":2"|upper }}
+                                       </div>
+                                {% endif %}
                             </a>
                             <!-- Dropdown - User Information -->
                             <div class="dropdown-menu dropdown-menu-right shadow animated--grow-in"

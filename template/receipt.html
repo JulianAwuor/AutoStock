@@ -43,7 +43,8 @@
                 <th>Product</th>
                 <th>Quantity</th>
                 <th>Selling Price</th>
-                <th>Total</th>
+                <th>Total (Incl. Tax)</th>
+                <th>Tax (Incl. in Price)</th>
             </tr>
         </thead>
         <tbody>
@@ -53,6 +54,7 @@
                     <td>{{ sale.quantitysold }}</td>
                     <td>{{ sale.sellingprice }}</td>
                     <td>{{ sale.total_sale }}</td>
+                    <td>{{ sale.tax_amount|floatformat:2 }}</td>
                 </tr>
             {% endfor %}
         </tbody>
@@ -60,20 +62,17 @@
 
     <div class="totals">
         <div><strong>Subtotal:</strong> {{ subtotal }}</div>
-        <div><strong>Tax (16%):</strong> {{ tax }}</div>
+        <div><strong>Total Tax (16% Incl.):</strong> {{ tax|floatformat:2 }}</div>
         <div><strong>Discount:</strong> {{ discount }}</div>
         <div><strong>Grand Total:</strong> {{ total }}</div>
     </div>
 
-   <div class="download-btn no-print">
-    <a href="{% url 'download_receipt' transaction.id %}">
-        <button>Download PDF</button>
-    </a>
-   </div>
-
-
+    <div class="download-btn no-print">
+        <a href="{% url 'download_receipt' transaction.id %}">
+            <button>Download PDF</button>
+        </a>
+    </div>
 </div>
-
 
 
 </body>
